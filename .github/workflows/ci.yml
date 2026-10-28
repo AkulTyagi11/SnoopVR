@@ -19,6 +19,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Setup MSVC Developer Environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Setup Ninja Build Tool
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -29,13 +38,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r simulation/requirements.txt
 
-      - name: Configure CMake (Linux)
-        if: runner.os == 'Linux'
-        run: cmake -B core/build -S core -DCMAKE_BUILD_TYPE=Release
-
-      - name: Configure CMake (Windows)
-        if: runner.os == 'Windows'
-        run: cmake -B core/build -S core -G "Visual Studio 17 2022" -A x64
+      - name: Configure CMake
+        run: cmake -B core/build -S core -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build Core C++ Library & Tests
         run: cmake --build core/build --config Release

@@ -9,6 +9,8 @@ This directory contains the native **iOS reference implementation** for **SnoopA
 ```
 ios/
 └── SnoopAR/
+    ├── SnoopArApp.swift               # @main SwiftUI App entry point
+    ├── Info.plist                     # Camera (ARKit) & Bluetooth privacy declarations
     ├── SnoopAR-Bridging-Header.h      # C-ABI bridge to core/include/snoopar/snoopar_core_c.h
     ├── Engine/
     │   └── SnoopArEngineWrapper.swift # Swift wrapper managing the SnoopAREngineHandle
