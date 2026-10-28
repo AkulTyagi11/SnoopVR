@@ -109,8 +109,18 @@ int main() {
     snoopar_destroy_engine(c_engine);
     std::cout << "[PASS] Test 6: C-ABI FFI wrapper verified\n";
 
+    // 7. Test Directional Bearing Calculation
+    float azimuth = 0.0f, elevation = 0.0f, dist = 0.0f;
+    // Current phone at (0, 0.8, 0) looking forward along -Z (gaze = 0, 0, -1)
+    // Target is around (1.2, 0.45, -0.8) -> delta.x = +1.2 (to the right!), delta.z = -0.8 (forward)
+    bool bearing_ok = engine.get_bearing_to_target(Vec3(0.0f, 0.8f, 0.0f), Vec3(0.0f, 0.0f, -1.0f), azimuth, elevation, dist);
+    CHECK(bearing_ok, "Bearing calculation must succeed when estimate exists");
+    CHECK(dist > 0.5f && dist < 2.5f, "Distance to target must be within reasonable range");
+    CHECK(azimuth > 20.0f && azimuth < 85.0f, "Target at positive X must produce positive right azimuth angle");
+    std::cout << "[PASS] Test 7: Directional bearing verified (Azimuth: " << azimuth << " deg, Dist: " << dist << " m)\n";
+
     std::cout << "==================================================\n";
-    std::cout << " All 6 Core Engine Tests Passed with ARCore Y-Up Axes!\n";
+    std::cout << " All 7 Core Engine Tests Passed with ARCore Y-Up Axes!\n";
     std::cout << "==================================================\n";
     return 0;
 }

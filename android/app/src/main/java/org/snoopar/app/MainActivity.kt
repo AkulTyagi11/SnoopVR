@@ -30,6 +30,7 @@ import org.snoopar.app.ble.TrackerScanner
 import org.snoopar.app.engine.AppGuidanceHint
 import org.snoopar.app.engine.AppSearchState
 import org.snoopar.app.engine.SnoopArNativeEngine
+import org.snoopar.app.engine.TargetBearing
 import org.snoopar.app.haptics.GeigerHapticFeedback
 import org.snoopar.app.ui.SnoopArScreen
 import kotlin.math.sqrt
@@ -51,6 +52,7 @@ class MainActivity : ComponentActivity() {
     private val latestRssi = mutableFloatStateOf(-100.0f)
     private val targetName = mutableStateOf("Scanning for trackers...")
     private val confidenceRadius = mutableStateOf<Float?>(null)
+    private val targetBearing = mutableStateOf<TargetBearing?>(null)
     private val selectedAddress = mutableStateOf<String?>(null)
 
     private val permissionLauncher = registerForActivityResult(
@@ -98,6 +100,7 @@ class MainActivity : ComponentActivity() {
                     latestRssi = latestRssi.floatValue,
                     targetName = targetName.value,
                     confidenceRadius = confidenceRadius.value,
+                    targetBearing = targetBearing.value,
                     trackers = trackers,
                     selectedAddress = selectedAddress.value,
                     onSelectTracker = { tracker -> onSelectTargetTracker(tracker) },
@@ -114,6 +117,7 @@ class MainActivity : ComponentActivity() {
                         searchState.value = AppSearchState.COARSE_SEARCH
                         guidanceHint.value = AppGuidanceHint.CONTINUE_SWEEP
                         confidenceRadius.value = null
+                        targetBearing.value = null
                     }
                 )
             }
@@ -142,12 +146,17 @@ class MainActivity : ComponentActivity() {
             val state = nativeEngine.getSearchState()
             val hint = nativeEngine.getGuidanceHint()
             val estimate = nativeEngine.getEstimate()
+            val bearing = nativeEngine.getBearingToTarget(
+                pose.x, pose.y, pose.z,
+                pose.gazeX, pose.gazeY, pose.gazeZ
+            )
 
             withContext(Dispatchers.Main) {
                 observationCount.longValue = count
                 latestRssi.floatValue = rssi
                 searchState.value = state
                 guidanceHint.value = hint
+                targetBearing.value = bearing
 
                 if (estimate != null) {
                     confidenceRadius.value = estimate.confidenceRadius
@@ -180,6 +189,7 @@ class MainActivity : ComponentActivity() {
         searchState.value = AppSearchState.COARSE_SEARCH
         guidanceHint.value = AppGuidanceHint.CONTINUE_SWEEP
         confidenceRadius.value = null
+        targetBearing.value = null
     }
 
     private fun checkAndRequestPermissions() {

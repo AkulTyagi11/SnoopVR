@@ -34,12 +34,28 @@ def _find_library() -> str:
                 os.add_dll_directory(str(build_dir))
             except Exception:
                 pass
+            release_dir = build_dir / "Release"
+            if release_dir.exists():
+                try:
+                    os.add_dll_directory(str(release_dir))
+                except Exception:
+                    pass
 
+    build_dir = Path(__file__).parent.parent / "build"
     search_paths = [
-        Path(__file__).parent.parent / "build" / "libsnoopar_core.dll",
-        Path(__file__).parent.parent / "build" / "libsnoopar_core.so",
-        Path(__file__).parent.parent / "build" / "libsnoopar_core.dylib",
+        build_dir / "libsnoopar_core.dll",
+        build_dir / "libsnoopar_core.so",
+        build_dir / "libsnoopar_core.dylib",
+        build_dir / "Release" / "libsnoopar_core.dll",
+        build_dir / "Release" / "snoopar_core.dll",
+        build_dir / "Release" / "libsnoopar_core.so",
+        build_dir / "Release" / "libsnoopar_core.dylib",
+        build_dir / "snoopar_core.dll",
+        build_dir / "snoopar_core.so",
         Path(__file__).parent / "libsnoopar_core.dll",
+        Path(__file__).parent / "snoopar_core.dll",
+        Path(__file__).parent / "libsnoopar_core.so",
+        Path(__file__).parent / "snoopar_core.so",
     ]
     for p in search_paths:
         if p.exists():
@@ -116,6 +132,16 @@ class SnoopAREngine:
         ]
         self._lib.snoopar_get_estimate.restype = ctypes.c_int32
 
+        self._lib.snoopar_get_bearing_to_target.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_float, ctypes.c_float, ctypes.c_float,
+            ctypes.c_float, ctypes.c_float, ctypes.c_float,
+            ctypes.POINTER(ctypes.c_float),
+            ctypes.POINTER(ctypes.c_float),
+            ctypes.POINTER(ctypes.c_float),
+        ]
+        self._lib.snoopar_get_bearing_to_target.restype = ctypes.c_int32
+
         self._lib.snoopar_get_voxel_cloud.argtypes = [
             ctypes.c_void_p,
             ctypes.POINTER(SnoopARVoxel),
@@ -173,6 +199,24 @@ class SnoopAREngine:
         )
         if ok:
             return ((x.value, y.value, z.value), rad.value)
+        return None
+
+    def get_bearing_to_target(
+        self,
+        cam_x: float, cam_y: float, cam_z: float,
+        gaze_x: float, gaze_y: float, gaze_z: float
+    ) -> Optional[Tuple[float, float, float]]:
+        azimuth = ctypes.c_float(0.0)
+        elevation = ctypes.c_float(0.0)
+        dist = ctypes.c_float(0.0)
+        ok = self._lib.snoopar_get_bearing_to_target(
+            self._handle,
+            ctypes.c_float(cam_x), ctypes.c_float(cam_y), ctypes.c_float(cam_z),
+            ctypes.c_float(gaze_x), ctypes.c_float(gaze_y), ctypes.c_float(gaze_z),
+            ctypes.byref(azimuth), ctypes.byref(elevation), ctypes.byref(dist)
+        )
+        if ok:
+            return (azimuth.value, elevation.value, dist.value)
         return None
 
     def get_voxel_cloud(self, max_count: int = 100) -> List[Tuple[float, float, float, float]]:

@@ -1,0 +1,580 @@
+{
+  "metadata": {
+    "session_id": "indoor_couch_cushion_smarttag",
+    "environment": "Living Room Fabric Couch",
+    "tracker_type": "Samsung_SmartTag",
+    "ground_truth": {
+      "x": -0.45,
+      "y": 0.45,
+      "z": 1.15
+    },
+    "true_rf_params": {
+      "true_A_dBm": -62.0,
+      "true_n": 2.65
+    },
+    "total_observations": 35,
+    "notes": "Generated with realistic 2.4 GHz Rayleigh multipath fading & torso body attenuation."
+  },
+  "observations": [
+    {
+      "step": 1,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -1.4866,
+        0.8372,
+        2.4125
+      ],
+      "camera_gaze": [
+        0.5909,
+        -0.2637,
+        -0.7624
+      ],
+      "rssi": -64.3,
+      "timestamp_ns": 1000000000
+    },
+    {
+      "step": 2,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -1.3631,
+        1.0001,
+        2.2989
+      ],
+      "camera_gaze": [
+        0.5758,
+        -0.372,
+        -0.7281
+      ],
+      "rssi": -63.5,
+      "timestamp_ns": 2000000000
+    },
+    {
+      "step": 3,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -1.2979,
+        0.8602,
+        2.2431
+      ],
+      "camera_gaze": [
+        0.5838,
+        -0.2597,
+        -0.7692
+      ],
+      "rssi": -76.8,
+      "timestamp_ns": 3000000000
+    },
+    {
+      "step": 4,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -1.1592,
+        0.9998,
+        2.2067
+      ],
+      "camera_gaze": [
+        0.5583,
+        -0.4001,
+        -0.7268
+      ],
+      "rssi": -67.1,
+      "timestamp_ns": 4000000000
+    },
+    {
+      "step": 5,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -0.9759,
+        0.8125,
+        2.1331
+      ],
+      "camera_gaze": [
+        0.4486,
+        -0.3339,
+        -0.829
+      ],
+      "rssi": -62.8,
+      "timestamp_ns": 5000000000
+    },
+    {
+      "step": 6,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -0.9227,
+        1.0111,
+        2.0296
+      ],
+      "camera_gaze": [
+        0.3564,
+        -0.5306,
+        -0.769
+      ],
+      "rssi": -68.9,
+      "timestamp_ns": 6000000000
+    },
+    {
+      "step": 7,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -0.7589,
+        0.8647,
+        2.0071
+      ],
+      "camera_gaze": [
+        0.3327,
+        -0.4093,
+        -0.8496
+      ],
+      "rssi": -60.2,
+      "timestamp_ns": 7000000000
+    },
+    {
+      "step": 8,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -0.692,
+        1.0259,
+        1.9758
+      ],
+      "camera_gaze": [
+        0.2638,
+        -0.5782,
+        -0.7721
+      ],
+      "rssi": -58.3,
+      "timestamp_ns": 8000000000
+    },
+    {
+      "step": 9,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -0.5352,
+        0.8284,
+        1.9274
+      ],
+      "camera_gaze": [
+        0.068,
+        -0.4362,
+        -0.8973
+      ],
+      "rssi": -63.8,
+      "timestamp_ns": 9000000000
+    },
+    {
+      "step": 10,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -0.3674,
+        0.9983,
+        1.966
+      ],
+      "camera_gaze": [
+        -0.0584,
+        -0.5856,
+        -0.8085
+      ],
+      "rssi": -68.7,
+      "timestamp_ns": 10000000000
+    },
+    {
+      "step": 11,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -0.3016,
+        0.8506,
+        1.9634
+      ],
+      "camera_gaze": [
+        -0.1828,
+        -0.4378,
+        -0.8803
+      ],
+      "rssi": -67.4,
+      "timestamp_ns": 11000000000
+    },
+    {
+      "step": 12,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -0.1583,
+        0.9796,
+        1.9846
+      ],
+      "camera_gaze": [
+        -0.26,
+        -0.5096,
+        -0.8202
+      ],
+      "rssi": -68.9,
+      "timestamp_ns": 12000000000
+    },
+    {
+      "step": 13,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        -0.0776,
+        0.8524,
+        1.9941
+      ],
+      "camera_gaze": [
+        -0.3966,
+        -0.3975,
+        -0.8275
+      ],
+      "rssi": -57.9,
+      "timestamp_ns": 13000000000
+    },
+    {
+      "step": 14,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        0.042,
+        0.9944,
+        2.0081
+      ],
+      "camera_gaze": [
+        -0.4383,
+        -0.5226,
+        -0.7313
+      ],
+      "rssi": -66.7,
+      "timestamp_ns": 14000000000
+    },
+    {
+      "step": 15,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        0.1836,
+        0.8654,
+        2.0615
+      ],
+      "camera_gaze": [
+        -0.5202,
+        -0.389,
+        -0.7603
+      ],
+      "rssi": -59.9,
+      "timestamp_ns": 15000000000
+    },
+    {
+      "step": 16,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        0.3242,
+        0.9935,
+        2.1349
+      ],
+      "camera_gaze": [
+        -0.5542,
+        -0.4521,
+        -0.6989
+      ],
+      "rssi": -65.0,
+      "timestamp_ns": 16000000000
+    },
+    {
+      "step": 17,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        0.409,
+        0.8885,
+        2.1535
+      ],
+      "camera_gaze": [
+        -0.621,
+        -0.2951,
+        -0.7261
+      ],
+      "rssi": -66.2,
+      "timestamp_ns": 17000000000
+    },
+    {
+      "step": 18,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        0.5612,
+        1.0366,
+        2.2364
+      ],
+      "camera_gaze": [
+        -0.6523,
+        -0.3512,
+        -0.6717
+      ],
+      "rssi": -58.9,
+      "timestamp_ns": 18000000000
+    },
+    {
+      "step": 19,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        0.6925,
+        0.8526,
+        2.3322
+      ],
+      "camera_gaze": [
+        -0.6853,
+        -0.2322,
+        -0.6902
+      ],
+      "rssi": -66.8,
+      "timestamp_ns": 19000000000
+    },
+    {
+      "step": 20,
+      "stage": "COARSE_SWEEP",
+      "camera_pos": [
+        0.7671,
+        0.9924,
+        2.4025
+      ],
+      "camera_gaze": [
+        -0.7143,
+        -0.2616,
+        -0.6491
+      ],
+      "rssi": -67.6,
+      "timestamp_ns": 20000000000
+    },
+    {
+      "step": 21,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.8105,
+        0.2622,
+        1.451
+      ],
+      "camera_gaze": [
+        0.0093,
+        -0.0083,
+        -0.9999
+      ],
+      "rssi": -56.9,
+      "timestamp_ns": 22000000000
+    },
+    {
+      "step": 22,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.7515,
+        0.4456,
+        1.4427
+      ],
+      "camera_gaze": [
+        -0.0085,
+        -0.018,
+        -0.9998
+      ],
+      "rssi": -52.3,
+      "timestamp_ns": 23000000000
+    },
+    {
+      "step": 23,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.7261,
+        0.6434,
+        1.4678
+      ],
+      "camera_gaze": [
+        0.0219,
+        0.0199,
+        -0.9996
+      ],
+      "rssi": -53.7,
+      "timestamp_ns": 24000000000
+    },
+    {
+      "step": 24,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.66,
+        0.2443,
+        1.4695
+      ],
+      "camera_gaze": [
+        0.0136,
+        -0.0114,
+        -0.9998
+      ],
+      "rssi": -59.5,
+      "timestamp_ns": 25000000000
+    },
+    {
+      "step": 25,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.5971,
+        0.4609,
+        1.4802
+      ],
+      "camera_gaze": [
+        -0.0001,
+        -0.0201,
+        -0.9998
+      ],
+      "rssi": -46.9,
+      "timestamp_ns": 26000000000
+    },
+    {
+      "step": 26,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.5582,
+        0.6472,
+        1.4737
+      ],
+      "camera_gaze": [
+        0.0007,
+        0.0112,
+        -0.9999
+      ],
+      "rssi": -51.3,
+      "timestamp_ns": 27000000000
+    },
+    {
+      "step": 27,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.5112,
+        0.2714,
+        1.4696
+      ],
+      "camera_gaze": [
+        0.0213,
+        -0.0166,
+        -0.9996
+      ],
+      "rssi": -46.5,
+      "timestamp_ns": 28000000000
+    },
+    {
+      "step": 28,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.4525,
+        0.4485,
+        1.4716
+      ],
+      "camera_gaze": [
+        -0.0002,
+        -0.0191,
+        -0.9998
+      ],
+      "rssi": -43.1,
+      "timestamp_ns": 29000000000
+    },
+    {
+      "step": 29,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.3892,
+        0.6282,
+        1.4735
+      ],
+      "camera_gaze": [
+        0.0164,
+        0.0093,
+        -0.9998
+      ],
+      "rssi": -74.7,
+      "timestamp_ns": 30000000000
+    },
+    {
+      "step": 30,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.343,
+        0.2684,
+        1.4668
+      ],
+      "camera_gaze": [
+        -0.0249,
+        0.001,
+        -0.9997
+      ],
+      "rssi": -44.2,
+      "timestamp_ns": 31000000000
+    },
+    {
+      "step": 31,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.2842,
+        0.4651,
+        1.4728
+      ],
+      "camera_gaze": [
+        0.0019,
+        -0.0069,
+        -1.0
+      ],
+      "rssi": -45.3,
+      "timestamp_ns": 32000000000
+    },
+    {
+      "step": 32,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.244,
+        0.6282,
+        1.4714
+      ],
+      "camera_gaze": [
+        -0.0384,
+        -0.0208,
+        -0.999
+      ],
+      "rssi": -47.3,
+      "timestamp_ns": 33000000000
+    },
+    {
+      "step": 33,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.2058,
+        0.2809,
+        1.4589
+      ],
+      "camera_gaze": [
+        -0.0106,
+        -0.0271,
+        -0.9996
+      ],
+      "rssi": -48.9,
+      "timestamp_ns": 34000000000
+    },
+    {
+      "step": 34,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.1583,
+        0.4578,
+        1.4775
+      ],
+      "camera_gaze": [
+        -0.0228,
+        -0.0017,
+        -0.9997
+      ],
+      "rssi": -52.1,
+      "timestamp_ns": 35000000000
+    },
+    {
+      "step": 35,
+      "stage": "CLOSE_SWEEP",
+      "camera_pos": [
+        -0.1008,
+        0.6256,
+        1.4589
+      ],
+      "camera_gaze": [
+        0.0022,
+        -0.0093,
+        -1.0
+      ],
+      "rssi": -57.6,
+      "timestamp_ns": 36000000000
+    }
+  ]
+}

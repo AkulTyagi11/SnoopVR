@@ -21,6 +21,15 @@ public:
     bool get_estimate(Vec3& out_position, float& out_confidence_radius) const;
     void get_voxel_cloud(std::vector<Voxel>& out_voxels, size_t max_count = 200) const;
 
+    // Computes relative horizontal azimuth (degrees [-180, 180]), elevation (degrees), and distance (meters) to target
+    bool get_bearing_to_target(
+        const Vec3& current_cam_pos,
+        const Vec3& current_cam_gaze,
+        float& out_azimuth_deg,
+        float& out_elevation_deg,
+        float& out_distance_m
+    ) const;
+
     SearchState get_search_state() const { return state_; }
     GuidanceHint get_guidance_hint() const;
 

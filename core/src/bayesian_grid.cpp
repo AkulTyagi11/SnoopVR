@@ -54,13 +54,39 @@ void BayesianGrid::update_all_voxels(const TrackerProfile& profile) {
     }
 
     // Evaluate closed-form marginalized A and Student-t likelihood across all voxels
+    // with multi-hypothesis marginalization over path-loss exponent n (e.g. n - 0.35, n, n + 0.35)
+    const float n_hypotheses[3] = {
+        profile.default_n - 0.35f,
+        profile.default_n,
+        profile.default_n + 0.35f
+    };
+    const float log_prior_n[3] = {
+        -1.38629436f, // ln(0.25)
+        -0.69314718f, // ln(0.50)
+        -1.38629436f  // ln(0.25)
+    };
+
     for (size_t i = 0; i < grid_points_.size(); ++i) {
-        log_likelihoods_[i] = RFModel::evaluate_candidate(
-            grid_points_[i],
-            observations_,
-            profile,
-            profile.default_n
-        );
+        float l_hyps[3];
+        float max_l = -1e9f;
+        for (int j = 0; j < 3; ++j) {
+            l_hyps[j] = RFModel::evaluate_candidate(
+                grid_points_[i],
+                observations_,
+                profile,
+                n_hypotheses[j]
+            ) + log_prior_n[j];
+            if (l_hyps[j] > max_l) {
+                max_l = l_hyps[j];
+            }
+        }
+
+        // Log-sum-exp over n hypotheses
+        float sum_exp = 0.0f;
+        for (int j = 0; j < 3; ++j) {
+            sum_exp += std::exp(l_hyps[j] - max_l);
+        }
+        log_likelihoods_[i] = max_l + std::log(sum_exp);
     }
 }
 

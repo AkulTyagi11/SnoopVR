@@ -94,6 +94,26 @@ int32_t snoopar_get_estimate(
     return 0;
 }
 
+int32_t snoopar_get_bearing_to_target(
+    SnoopAREngineHandle handle,
+    float cam_x, float cam_y, float cam_z,
+    float gaze_x, float gaze_y, float gaze_z,
+    float* out_azimuth_deg,
+    float* out_elevation_deg,
+    float* out_distance_m
+) {
+    if (!handle || !out_azimuth_deg || !out_elevation_deg || !out_distance_m) {
+        return 0;
+    }
+    Vec3 cam_pos(cam_x, cam_y, cam_z);
+    Vec3 cam_gaze(gaze_x, gaze_y, gaze_z);
+    bool ok = static_cast<Engine*>(handle)->get_bearing_to_target(
+        cam_pos, cam_gaze,
+        *out_azimuth_deg, *out_elevation_deg, *out_distance_m
+    );
+    return ok ? 1 : 0;
+}
+
 size_t snoopar_get_voxel_cloud(
     SnoopAREngineHandle handle,
     SnoopARVoxel* out_voxels,

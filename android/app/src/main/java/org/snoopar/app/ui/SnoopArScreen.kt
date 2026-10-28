@@ -17,6 +17,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import org.snoopar.app.ble.DiscoveredTracker
 import org.snoopar.app.engine.AppGuidanceHint
 import org.snoopar.app.engine.AppSearchState
+import org.snoopar.app.engine.TargetBearing
 import org.snoopar.app.ui.components.ArOverlayHud
 import org.snoopar.app.ui.components.TargetSelectorSheet
 
@@ -29,6 +30,7 @@ fun SnoopArScreen(
     latestRssi: Float,
     targetName: String,
     confidenceRadius: Float?,
+    targetBearing: TargetBearing? = null,
     trackers: List<DiscoveredTracker>,
     selectedAddress: String?,
     onSelectTracker: (DiscoveredTracker) -> Unit,
@@ -53,6 +55,7 @@ fun SnoopArScreen(
             targetName = targetName,
             confidenceRadius = confidenceRadius,
             trackerCount = trackers.size,
+            targetBearing = targetBearing,
             onOpenTargetSelector = { showTargetSelector = true },
             onStartCloseSweep = onStartCloseSweep,
             onReset = onReset,

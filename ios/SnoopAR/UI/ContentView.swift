@@ -16,6 +16,7 @@ public struct ContentView: View {
     @State private var latestRssi: Float = -100.0
     @State private var targetName: String = "Scanning for trackers..."
     @State private var confidenceRadius: Float? = nil
+    @State private var targetBearing: TargetBearing? = nil
     @State private var selectedAddress: String? = nil
     @State private var showTrackerSheet: Bool = false
     
@@ -59,6 +60,28 @@ public struct ContentView: View {
                     .background(Color.black.opacity(0.75))
                     .cornerRadius(12)
                     .padding(.horizontal, 16)
+                    
+                    // Directional Target Bearing Indicator
+                    if let bearing = targetBearing, bearing.distanceM > 0.05 {
+                        let isLeft = bearing.azimuthDeg < -25.0
+                        let isRight = bearing.azimuthDeg > 25.0
+                        let absAzimuth = Int(abs(bearing.azimuthDeg))
+                        let distStr = String(format: "%.1fm", bearing.distanceM)
+                        let navText = isLeft ? "← Turn Left \(absAzimuth)° (\(distStr))" :
+                                     (isRight ? "Turn Right \(absAzimuth)° → (\(distStr))" : "Target Ahead (\(distStr))")
+                        
+                        HStack(spacing: 6) {
+                            Image(systemName: "location.north.line.fill")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(navText)
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background((isLeft || isRight) ? Color.cyan.opacity(0.85) : Color.green.opacity(0.85))
+                        .cornerRadius(16)
+                    }
                 }
                 .padding(.top, 12)
                 
@@ -181,6 +204,11 @@ public struct ContentView: View {
                 let estimate = engine.getEstimate()
                 sceneRenderer.updateTargetLock(estimate: estimate)
                 
+                let bearing = engine.getBearingToTarget(
+                    camX: pose.x, camY: pose.y, camZ: pose.z,
+                    gazeX: pose.gazeX, gazeY: pose.gazeY, gazeZ: pose.gazeZ
+                )
+                
                 let count = engine.getObservationCount()
                 let state = engine.getSearchState()
                 let hint = engine.getGuidanceHint()
@@ -191,6 +219,7 @@ public struct ContentView: View {
                     self.searchState = state
                     self.guidanceHint = hint
                     self.confidenceRadius = estimate?.confidenceRadius
+                    self.targetBearing = bearing
                     
                     if state == .targetLocked {
                         hapticGenerator.impactOccurred()
@@ -222,6 +251,7 @@ public struct ContentView: View {
         searchState = .coarseSearch
         guidanceHint = .continueSweep
         confidenceRadius = nil
+        targetBearing = nil
     }
     
     private func stageColor(for state: SearchState) -> Color {

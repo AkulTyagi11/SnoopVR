@@ -167,6 +167,37 @@ Java_org_snoopar_app_engine_SnoopArNativeEngine_nativeGetEstimate(
 }
 
 JNIEXPORT jfloatArray JNICALL
+Java_org_snoopar_app_engine_SnoopArNativeEngine_nativeGetBearingToTarget(
+    JNIEnv* env, jobject thiz, jlong handle,
+    jfloat cam_x, jfloat cam_y, jfloat cam_z,
+    jfloat gaze_x, jfloat gaze_y, jfloat gaze_z
+) {
+    if (handle == 0) return nullptr;
+    try {
+        float azimuth = 0.0f, elevation = 0.0f, distance = 0.0f;
+        int32_t ok = snoopar_get_bearing_to_target(
+            reinterpret_cast<SnoopAREngineHandle>(handle),
+            cam_x, cam_y, cam_z,
+            gaze_x, gaze_y, gaze_z,
+            &azimuth, &elevation, &distance
+        );
+        if (!ok) {
+            return nullptr;
+        }
+
+        jfloatArray result = env->NewFloatArray(3);
+        if (result == nullptr) return nullptr;
+
+        jfloat elements[3] = {azimuth, elevation, distance};
+        env->SetFloatArrayRegion(result, 0, 3, elements);
+        return result;
+    } catch (const std::exception& e) {
+        LOGE("nativeGetBearingToTarget exception: %s", e.what());
+        return nullptr;
+    }
+}
+
+JNIEXPORT jfloatArray JNICALL
 Java_org_snoopar_app_engine_SnoopArNativeEngine_nativeGetVoxelCloud(
     JNIEnv* env, jobject thiz, jlong handle, jint max_count
 ) {

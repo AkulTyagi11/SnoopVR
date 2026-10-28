@@ -56,6 +56,12 @@ public struct TargetEstimate {
     public let confidenceRadius: Float
 }
 
+public struct TargetBearing {
+    public let azimuthDeg: Float
+    public let elevationDeg: Float
+    public let distanceM: Float
+}
+
 public final class SnoopArEngine {
     private var handle: SnoopAREngineHandle?
     
@@ -120,6 +126,19 @@ public final class SnoopArEngine {
         let ok = snoopar_get_estimate(h, &x, &y, &z, &radius)
         if ok == 0 { return nil }
         return TargetEstimate(x: x, y: y, z: z, confidenceRadius: radius)
+    }
+
+    public func getBearingToTarget(
+        camX: Float, camY: Float, camZ: Float,
+        gazeX: Float, gazeY: Float, gazeZ: Float
+    ) -> TargetBearing? {
+        guard let h = handle else { return nil }
+        var azimuth: Float = 0
+        var elevation: Float = 0
+        var distance: Float = 0
+        let ok = snoopar_get_bearing_to_target(h, camX, camY, camZ, gazeX, gazeY, gazeZ, &azimuth, &elevation, &distance)
+        if ok == 0 { return nil }
+        return TargetBearing(azimuthDeg: azimuth, elevationDeg: elevation, distanceM: distance)
     }
     
     public func getVoxelCloud(maxCount: Int = 80) -> [VoxelPoint] {

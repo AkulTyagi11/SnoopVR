@@ -44,6 +44,15 @@ int32_t snoopar_get_estimate(
     float* out_confidence_radius
 );
 
+int32_t snoopar_get_bearing_to_target(
+    SnoopAREngineHandle handle,
+    float cam_x, float cam_y, float cam_z,
+    float gaze_x, float gaze_y, float gaze_z,
+    float* out_azimuth_deg,
+    float* out_elevation_deg,
+    float* out_distance_m
+);
+
 size_t snoopar_get_voxel_cloud(
     SnoopAREngineHandle handle,
     SnoopARVoxel* out_voxels,

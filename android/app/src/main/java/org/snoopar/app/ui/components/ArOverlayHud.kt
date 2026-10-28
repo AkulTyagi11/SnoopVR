@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.snoopar.app.engine.AppGuidanceHint
 import org.snoopar.app.engine.AppSearchState
+import org.snoopar.app.engine.TargetBearing
+import kotlin.math.abs
 
 @Composable
 fun ArOverlayHud(
@@ -31,6 +33,7 @@ fun ArOverlayHud(
     targetName: String,
     confidenceRadius: Float?,
     trackerCount: Int,
+    targetBearing: TargetBearing? = null,
     onOpenTargetSelector: () -> Unit,
     onStartCloseSweep: () -> Unit,
     onReset: () -> Unit,
@@ -97,6 +100,45 @@ fun ArOverlayHud(
                         color = Color.White,
                         fontWeight = FontWeight.Medium
                     )
+                }
+            }
+
+            // Directional Guidance Indicator (Off-Screen & Range)
+            if (targetBearing != null && targetBearing.distanceM > 0.05f) {
+                val isLeft = targetBearing.azimuthDeg < -25f
+                val isRight = targetBearing.azimuthDeg > 25f
+                val absAzimuth = abs(targetBearing.azimuthDeg).toInt()
+                val distStr = "%.1fm".format(targetBearing.distanceM)
+
+                val navText = when {
+                    isLeft -> "← Turn Left ${absAzimuth}° ($distStr)"
+                    isRight -> "Turn Right ${absAzimuth}° → ($distStr)"
+                    else -> "Target Ahead ($distStr)"
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Surface(
+                    color = if (isLeft || isRight) Color(0xDD00838F) else Color(0xDD2E7D32),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.GpsFixed,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = navText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }

@@ -4,6 +4,8 @@ data class VoxelPoint(val x: Float, val y: Float, val z: Float, val probability:
 
 data class TargetEstimate(val x: Float, val y: Float, val z: Float, val confidenceRadius: Float)
 
+data class TargetBearing(val azimuthDeg: Float, val elevationDeg: Float, val distanceM: Float)
+
 enum class AppSearchState(val id: Int) {
     COARSE_SEARCH(0),
     READY_FOR_CLOSE_SWEEP(1),
@@ -85,6 +87,16 @@ class SnoopArNativeEngine(trackerType: Int = 0) : AutoCloseable {
         return TargetEstimate(raw[0], raw[1], raw[2], raw[3])
     }
 
+    fun getBearingToTarget(
+        camX: Float, camY: Float, camZ: Float,
+        gazeX: Float, gazeY: Float, gazeZ: Float
+    ): TargetBearing? {
+        if (handle == 0L) return null
+        val raw = nativeGetBearingToTarget(handle, camX, camY, camZ, gazeX, gazeY, gazeZ) ?: return null
+        if (raw.size < 3) return null
+        return TargetBearing(raw[0], raw[1], raw[2])
+    }
+
     fun getVoxelCloud(maxCount: Int = 100): List<VoxelPoint> {
         if (handle == 0L) return emptyList()
         val raw = nativeGetVoxelCloud(handle, maxCount) ?: return emptyList()
@@ -120,5 +132,10 @@ class SnoopArNativeEngine(trackerType: Int = 0) : AutoCloseable {
     private external fun nativeStartCloseSweep(handle: Long)
     private external fun nativeGetObservationCount(handle: Long): Long
     private external fun nativeGetEstimate(handle: Long): FloatArray?
+    private external fun nativeGetBearingToTarget(
+        handle: Long,
+        camX: Float, camY: Float, camZ: Float,
+        gazeX: Float, gazeY: Float, gazeZ: Float
+    ): FloatArray?
     private external fun nativeGetVoxelCloud(handle: Long, maxCount: Int): FloatArray?
 }
