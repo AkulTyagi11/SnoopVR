@@ -1,0 +1,43 @@
+name: SnoopAR Continuous Integration
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  core-build-and-test:
+    name: Core C++20 & Simulation Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28.x'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Configure CMake
+        run: cmake -B core/build -S core -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Core C++ Library & Tests
+        run: cmake --build core/build --config Release
+
+      - name: Run Core Test Suite
+        working-directory: core/build
+        run: ctest --output-on-failure -C Release || ./snoopar_test
+
+      - name: Run Monte Carlo Benchmark
+        run: python simulation/benchmark_snoopar.py

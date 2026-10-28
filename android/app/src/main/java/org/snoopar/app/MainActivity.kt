@@ -18,6 +18,11 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.google.ar.core.ArCoreApk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.snoopar.app.ar.ArCoreController
 import org.snoopar.app.ar.rendering.ArGlRenderer
 import org.snoopar.app.ble.DiscoveredTracker
@@ -37,6 +42,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var glSurfaceView: GLSurfaceView
     private lateinit var geigerHaptics: GeigerHapticFeedback
     private var trackerScanner: TrackerScanner? = null
+    private var userRequestedInstall = true
 
     // UI Reactive State
     private val searchState = mutableStateOf(AppSearchState.COARSE_SEARCH)
@@ -117,38 +123,45 @@ class MainActivity : ComponentActivity() {
     private fun onBlePacketReceived(address: String, rssi: Float, timestampNs: Long) {
         val pose = arCoreController.interpolatePoseAt(timestampNs) ?: return
 
-        // Ingest into C++20 Core Engine via JNI
-        nativeEngine.addObservation(
-            pose.x, pose.y, pose.z,
-            pose.gazeX, pose.gazeY, pose.gazeZ,
-            rssi, timestampNs
-        )
+        lifecycleScope.launch(Dispatchers.Default) {
+            // Ingest into C++20 Core Engine via JNI on worker thread
+            nativeEngine.addObservation(
+                pose.x, pose.y, pose.z,
+                pose.gazeX, pose.gazeY, pose.gazeZ,
+                rssi, timestampNs
+            )
 
-        // Add 3D AR Breadcrumb
-        glRenderer.breadcrumbRenderer.addBreadcrumb(pose.x, pose.y, pose.z, rssi)
+            // Add 3D AR Breadcrumb
+            glRenderer.breadcrumbRenderer.addBreadcrumb(pose.x, pose.y, pose.z, rssi)
 
-        // Query updated 3D Volumetric Probability Cloud
-        val voxels = nativeEngine.getVoxelCloud(maxCount = 80)
-        glRenderer.updateVoxelCloud(voxels)
+            // Query updated 3D Volumetric Probability Cloud
+            val voxels = nativeEngine.getVoxelCloud(maxCount = 80)
+            glRenderer.updateVoxelCloud(voxels)
 
-        // Update UI State
-        observationCount.longValue = nativeEngine.getObservationCount()
-        latestRssi.floatValue = rssi
-        searchState.value = nativeEngine.getSearchState()
-        guidanceHint.value = nativeEngine.getGuidanceHint()
+            val count = nativeEngine.getObservationCount()
+            val state = nativeEngine.getSearchState()
+            val hint = nativeEngine.getGuidanceHint()
+            val estimate = nativeEngine.getEstimate()
 
-        val estimate = nativeEngine.getEstimate()
-        if (estimate != null) {
-            confidenceRadius.value = estimate.confidenceRadius
+            withContext(Dispatchers.Main) {
+                observationCount.longValue = count
+                latestRssi.floatValue = rssi
+                searchState.value = state
+                guidanceHint.value = hint
 
-            // Compute Geiger alignment dot product
-            val dx = estimate.x - pose.x
-            val dy = estimate.y - pose.y
-            val dz = estimate.z - pose.z
-            val dist = sqrt(dx * dx + dy * dy + dz * dz)
-            if (dist > 1e-4f) {
-                val dot = (pose.gazeX * (dx / dist)) + (pose.gazeY * (dy / dist)) + (pose.gazeZ * (dz / dist))
-                geigerHaptics.update(dot, dist)
+                if (estimate != null) {
+                    confidenceRadius.value = estimate.confidenceRadius
+
+                    // Compute Geiger alignment dot product
+                    val dx = estimate.x - pose.x
+                    val dy = estimate.y - pose.y
+                    val dz = estimate.z - pose.z
+                    val dist = sqrt(dx * dx + dy * dy + dz * dz)
+                    if (dist > 1e-4f) {
+                        val dot = (pose.gazeX * (dx / dist)) + (pose.gazeY * (dy / dist)) + (pose.gazeZ * (dz / dist))
+                        geigerHaptics.update(dot, dist)
+                    }
+                }
             }
         }
     }
@@ -189,28 +202,57 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startTrackingPipelines() {
-        arCoreController.initialize()
-        arCoreController.resume()
-        trackerScanner?.start()
+        checkArCoreInstallAndResume()
+    }
+
+    private fun checkArCoreInstallAndResume() {
+        try {
+            when (ArCoreApk.getInstance().requestInstall(this, userRequestedInstall)) {
+                ArCoreApk.InstallStatus.INSTALL_REQUESTED -> {
+                    userRequestedInstall = false
+                    return
+                }
+                ArCoreApk.InstallStatus.INSTALLED -> {
+                    if (arCoreController.initialize()) {
+                        arCoreController.resume()
+                        glSurfaceView.onResume()
+                        trackerScanner?.start()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "ARCore initialization failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        glSurfaceView.onResume()
-        arCoreController.resume()
-        trackerScanner?.start()
+        val permissions = mutableListOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+        }
+        val allGranted = permissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+        if (allGranted) {
+            checkArCoreInstallAndResume()
+        }
     }
 
     override fun onPause() {
         super.onPause()
         trackerScanner?.stop()
-        arCoreController.pause()
         glSurfaceView.onPause()
+        arCoreController.pause()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         trackerScanner?.stop()
+        glSurfaceView.onPause()
         arCoreController.destroy()
         nativeEngine.close()
     }

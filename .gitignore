@@ -51,3 +51,4 @@ DerivedData/
 # OS specific
 .DS_Store
 Thumbs.db
+.vscode/

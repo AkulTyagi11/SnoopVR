@@ -51,9 +51,16 @@ class BreadcrumbRenderer {
         mvpMatrixHandle = GLES20.glGetUniformLocation(program, "uMvpMatrix")
     }
 
+    companion object {
+        private const val MAX_BREADCRUMBS = 250
+    }
+
     fun addBreadcrumb(x: Float, y: Float, z: Float, rssi: Float) {
         synchronized(breadcrumbs) {
             breadcrumbs.add(Breadcrumb(x, y, z, rssi))
+            while (breadcrumbs.size > MAX_BREADCRUMBS) {
+                breadcrumbs.removeAt(0)
+            }
             updateBuffer()
         }
     }

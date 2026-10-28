@@ -142,6 +142,11 @@ SnoopAR/
 ├── android/                            # Native Android AR Application (Jetpack Compose + ARCore)
 │   ├── app/src/main/cpp/               # JNI bindings linking to shared C++ core
 │   └── app/src/main/java/org/snoopar/  # AR rendering, BLE scanning, HUD, Geiger haptics
+├── ios/                                # Native iOS AR Application (SwiftUI + ARKit + SceneKit)
+│   ├── SnoopAR/Engine/                 # Swift C-ABI wrapper for C++ core
+│   ├── SnoopAR/AR/                     # ARKit 6-DoF VIO tracking & pose interpolation
+│   ├── SnoopAR/BLE/                    # CoreBluetooth scanner & protocol classification
+│   └── SnoopAR/UI/                     # SwiftUI HUD & 3D holographic scene renderer
 ├── tools/android-data-logger/          # Empirical Data Capture App
 │   ├── app/                            # Android Jetpack Compose + ARCore + BLE capture app
 │   └── scripts/replay_session.py       # Offline session replay & evaluation

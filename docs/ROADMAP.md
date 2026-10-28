@@ -75,17 +75,19 @@ This roadmap tracks the development milestones for **SnoopAR**, progressing from
 ---
 
 ## Phase 4: iOS Native Application
-> **Status: Planned**  
-> **Goal:** Implement the native iOS application leveraging ARKit, RealityKit/Metal, and CoreBluetooth.
+> **Status: Complete (Foundation)**  
+> **Goal:** Implement the native iOS application leveraging ARKit, SceneKit, and CoreBluetooth.
 
-- [ ] **4.1 Swift C-Interop:**
-  - Integrate `snoopar_core_c.h` into an Xcode project via module map.
-- [ ] **4.2 ARKit VIO Tracking:**
-  - Capture 60 Hz `ARFrame` camera poses and microsecond timestamp synchronization.
-- [ ] **4.3 CoreBluetooth Scanner:**
-  - Background and foreground BLE scanning with manufacturer data extraction.
-- [ ] **4.4 RealityKit / Metal Rendering:**
-  - Render volumetric point clouds and trajectory breadcrumbs in ARKit scene space.
+- [x] **4.1 Swift C-Interop:**
+  - Bridge `snoopar_core_c.h` to Swift via `SnoopAR-Bridging-Header.h` and `SnoopArEngineWrapper.swift`.
+- [x] **4.2 ARKit VIO Tracking:**
+  - `ArKitController.swift` capturing ARCore-compatible Y-up camera poses and gaze vectors with microsecond interpolation.
+- [x] **4.3 CoreBluetooth Scanner:**
+  - `TrackerScanner.swift` with continuous duplicate reporting, Apple Find My (`0x004c`), SmartTag (`0xFD5A`), Tile (`0xFEED`/`0xFEEC`), and Google FMDN (`0xFEAA`).
+- [x] **4.4 SceneKit 3D Holographic Rendering:**
+  - `VoxelSceneRenderer.swift` rendering floating signal breadcrumbs, glowing thermal probability voxels, and target lock wireframe spheres.
+- [x] **4.5 SwiftUI User Interface:**
+  - `ContentView.swift` implementing HUD stage indicators, live telemetry card, Geiger haptic ticks, and suspect tracker selection sheet.
 
 ---
 
