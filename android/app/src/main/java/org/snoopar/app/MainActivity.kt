@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.opengl.GLSurfaceView
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
+import android.view.Surface
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -44,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var geigerFeedback: GeigerFeedbackManager
     private var trackerScanner: TrackerScanner? = null
     private var userRequestedInstall = true
+    private var isSessionConfigured = false
 
     // UI Reactive State
     private val searchState = mutableStateOf(AppSearchState.COARSE_SEARCH)
@@ -58,20 +61,32 @@ class MainActivity : ComponentActivity() {
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        if (permissions.values.all { it }) {
+    ) { _ ->
+        if (hasRequiredPermissions()) {
             startTrackingPipelines()
         } else {
-            Toast.makeText(this, "Camera & Bluetooth permissions required", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Camera & Location permissions required for AR and BLE tracking", Toast.LENGTH_LONG).show()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Install defensive global exception logger
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e("SnoopAR", "Uncaught exception on thread ${thread.name}: ${throwable.message}", throwable)
+        }
+
         nativeEngine = SnoopArNativeEngine(0) // AirTag default
         arCoreController = ArCoreController(this)
-        glRenderer = ArGlRenderer(arCoreController)
+        glRenderer = ArGlRenderer(arCoreController) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                display?.rotation ?: Surface.ROTATION_0
+            } else {
+                @Suppress("DEPRECATION")
+                windowManager.defaultDisplay.rotation
+            }
+        }
         geigerFeedback = GeigerFeedbackManager(this)
 
         glSurfaceView = GLSurfaceView(this).apply {
@@ -110,6 +125,15 @@ class MainActivity : ComponentActivity() {
                         nativeEngine.startCloseSweep()
                         searchState.value = AppSearchState.CLOSE_SWEEP_ACTIVE
                         guidanceHint.value = AppGuidanceHint.APPROACH_SURFACE
+
+                        // Snap to nearest detected physical surface plane if available
+                        arCoreController.getNearestPlane()?.let { plane ->
+                            nativeEngine.setSurfacePlane(
+                                plane.centerX, plane.centerY, plane.centerZ,
+                                plane.normalX, plane.normalY, plane.normalZ,
+                                sigmaMeters = 0.08f
+                            )
+                        }
                     },
                     onToggleAudioMute = {
                         isAudioMuted.value = !isAudioMuted.value
@@ -117,6 +141,7 @@ class MainActivity : ComponentActivity() {
                     },
                     onReset = {
                         nativeEngine.reset()
+                        nativeEngine.clearSurfacePlane()
                         glRenderer.breadcrumbRenderer.clear()
                         glRenderer.updateVoxelCloud(emptyList())
                         observationCount.longValue = 0L
@@ -143,6 +168,17 @@ class MainActivity : ComponentActivity() {
 
             // Add 3D AR Breadcrumb
             glRenderer.breadcrumbRenderer.addBreadcrumb(pose.x, pose.y, pose.z, rssi)
+
+            // If close sweep is active, periodically refresh nearest surface plane
+            if (searchState.value == AppSearchState.CLOSE_SWEEP_ACTIVE) {
+                arCoreController.getNearestPlane()?.let { plane ->
+                    nativeEngine.setSurfacePlane(
+                        plane.centerX, plane.centerY, plane.centerZ,
+                        plane.normalX, plane.normalY, plane.normalZ,
+                        sigmaMeters = 0.08f
+                    )
+                }
+            }
 
             // Query updated 3D Volumetric Probability Cloud
             val voxels = nativeEngine.getVoxelCloud(maxCount = 80)
@@ -189,6 +225,7 @@ class MainActivity : ComponentActivity() {
 
         // Reset search pipeline for new target
         nativeEngine.reset()
+        nativeEngine.clearSurfacePlane()
         glRenderer.breadcrumbRenderer.clear()
         glRenderer.updateVoxelCloud(emptyList())
         observationCount.longValue = 0L
@@ -198,10 +235,23 @@ class MainActivity : ComponentActivity() {
         targetBearing.value = null
     }
 
+    private fun hasRequiredPermissions(): Boolean {
+        val cameraGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val locationGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val btGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+        return cameraGranted && (locationGranted || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) && btGranted
+    }
+
     private fun checkAndRequestPermissions() {
         val permissions = mutableListOf(
             Manifest.permission.CAMERA,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissions.add(Manifest.permission.BLUETOOTH_SCAN)
@@ -218,10 +268,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startTrackingPipelines() {
-        checkArCoreInstallAndResume()
+        if (!hasRequiredPermissions()) return
+        setupArCoreAndStart()
     }
 
-    private fun checkArCoreInstallAndResume() {
+    private fun setupArCoreAndStart() {
         try {
             when (ArCoreApk.getInstance().requestInstall(this, userRequestedInstall)) {
                 ArCoreApk.InstallStatus.INSTALL_REQUESTED -> {
@@ -229,32 +280,34 @@ class MainActivity : ComponentActivity() {
                     return
                 }
                 ArCoreApk.InstallStatus.INSTALLED -> {
-                    if (arCoreController.initialize()) {
+                    if (arCoreController.session == null) {
+                        if (arCoreController.initialize()) {
+                            isSessionConfigured = true
+                        } else {
+                            Toast.makeText(this, "ARCore initialization failed. Ensure Google Play Services for AR is installed", Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        isSessionConfigured = true
+                    }
+
+                    if (isSessionConfigured) {
                         arCoreController.resume()
-                        glSurfaceView.onResume()
                         trackerScanner?.start()
                     }
                 }
             }
         } catch (e: Exception) {
+            Log.e("SnoopAR", "ARCore setup exception: ${e.message}", e)
             Toast.makeText(this, "ARCore initialization failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     override fun onResume() {
         super.onResume()
-        val permissions = mutableListOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
-        }
-        val allGranted = permissions.all {
-            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-        }
-        if (allGranted) {
-            checkArCoreInstallAndResume()
+        glSurfaceView.onResume()
+
+        if (hasRequiredPermissions()) {
+            setupArCoreAndStart()
         }
     }
 

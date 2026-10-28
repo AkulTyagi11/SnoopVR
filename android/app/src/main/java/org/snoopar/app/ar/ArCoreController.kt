@@ -15,6 +15,12 @@ data class CameraPoseSample(
     val gazeX: Float, val gazeY: Float, val gazeZ: Float
 )
 
+data class DetectedPlane(
+    val centerX: Float, val centerY: Float, val centerZ: Float,
+    val normalX: Float, val normalY: Float, val normalZ: Float,
+    val distanceToCamera: Float
+)
+
 class ArCoreController(private val context: Context) {
 
     var session: Session? = null
@@ -27,11 +33,14 @@ class ArCoreController(private val context: Context) {
         private set
 
     fun initialize(): Boolean {
+        if (session != null) return true
+
         return try {
             val arSession = Session(context)
             val config = Config(arSession).apply {
                 focusMode = Config.FocusMode.AUTO
                 updateMode = Config.UpdateMode.LATEST_CAMERA_IMAGE
+                planeFindingMode = Config.PlaneFindingMode.HORIZONTAL_AND_VERTICAL
             }
             arSession.configure(config)
             session = arSession
@@ -96,6 +105,47 @@ class ArCoreController(private val context: Context) {
             }
         }
         return history.last()
+    }
+
+    /**
+     * Finds the nearest tracked physical surface plane (table, floor, or vertical wall/surface)
+     * to constrain 3D Bayesian occupancy estimates during close sweep mode.
+     */
+    fun getNearestPlane(): DetectedPlane? {
+        val arSession = session ?: return null
+        val curPose = currentPose ?: return null
+
+        var nearest: DetectedPlane? = null
+        var minDist = Float.MAX_VALUE
+
+        try {
+            for (plane in arSession.getAllTrackables(com.google.ar.core.Plane::class.java)) {
+                if (plane.trackingState != TrackingState.TRACKING || plane.subsumedBy != null) continue
+
+                val centerPose = plane.centerPose
+                val px = centerPose.tx()
+                val py = centerPose.ty()
+                val pz = centerPose.tz()
+
+                // In ARCore, the plane normal is defined by the pose's Y axis
+                val yAxis = centerPose.yAxis
+                val nx = yAxis[0]
+                val ny = yAxis[1]
+                val nz = yAxis[2]
+
+                val dx = px - curPose.x
+                val dy = py - curPose.y
+                val dz = pz - curPose.z
+                val dist = kotlin.math.sqrt(dx * dx + dy * dy + dz * dz)
+
+                if (dist < minDist) {
+                    minDist = dist
+                    nearest = DetectedPlane(px, py, pz, nx, ny, nz, dist)
+                }
+            }
+        } catch (_: Exception) {}
+
+        return nearest
     }
 
     fun resume() {

@@ -81,6 +81,8 @@ class VoxelCloudRenderer {
     }
 
     fun draw(mvpMatrix: FloatArray) {
+        if (program == 0 || positionHandle < 0) return
+
         val (buffer, count) = synchronized(this) {
             val buf = vertexBuffer ?: return
             val cnt = pointCount
@@ -88,21 +90,24 @@ class VoxelCloudRenderer {
             Pair(buf, cnt)
         }
 
-        GLES20.glUseProgram(program)
-        GLES20.glEnable(GLES20.GL_BLEND)
-        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE) // Additive thermal blending
-        GLES20.glDepthMask(false)
+        try {
+            buffer.position(0)
+            GLES20.glUseProgram(program)
+            GLES20.glEnable(GLES20.GL_BLEND)
+            GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE) // Additive thermal blending
+            GLES20.glDepthMask(false)
 
-        GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0)
+            GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0)
 
-        GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 4, GLES20.GL_FLOAT, false, 4 * 4, buffer)
+            GLES20.glEnableVertexAttribArray(positionHandle)
+            GLES20.glVertexAttribPointer(positionHandle, 4, GLES20.GL_FLOAT, false, 4 * 4, buffer)
 
-        GLES20.glDrawArrays(GLES20.GL_POINTS, 0, count)
+            GLES20.glDrawArrays(GLES20.GL_POINTS, 0, count)
 
-        GLES20.glDisableVertexAttribArray(positionHandle)
-        GLES20.glDepthMask(true)
-        GLES20.glDisable(GLES20.GL_BLEND)
+            GLES20.glDisableVertexAttribArray(positionHandle)
+            GLES20.glDepthMask(true)
+            GLES20.glDisable(GLES20.GL_BLEND)
+        } catch (_: Exception) {}
     }
 
     private fun createProgram(vCode: String, fCode: String): Int {

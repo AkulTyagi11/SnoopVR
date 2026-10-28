@@ -3,6 +3,7 @@
 > **Augmented Reality Spatial Pinpointer for Hidden Trackers & Covert Surveillance Devices**  
 > *Translating 2.4 GHz radio waves into a 3D volumetric lock in your camera viewfinder.*
 
+[![Download Android APK](https://img.shields.io/badge/Download_APK-v0.1.0--alpha-green?style=for-the-badge&logo=android)](https://github.com/AkulTyagi11/SnoopVR/releases)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Core: C++20](https://img.shields.io/badge/Core-C%2B%2B20_Zero--Dependency-00599C.svg)](core/)
 [![Validation: Monte_Carlo_30_Seeds](https://img.shields.io/badge/Benchmark-97%25_%3C50cm-brightgreen.svg)](simulation/benchmark_snoopar.py)
@@ -96,28 +97,33 @@ python simulation/benchmark_snoopar.py
 
 ## Quickstart
 
-### 1. Run the Python Simulation & Benchmark
+### 1. Install & Test on Android
+1. **Download:** Get `app-debug.apk` directly from [GitHub Releases](https://github.com/AkulTyagi11/SnoopVR/releases) (or via GitHub Actions artifacts).
+2. **Install:** Sideload the APK onto an ARCore-compatible Android device running Android 10+ (API 29+).
+3. **Run:** Grant Camera, Location, and Bluetooth permissions. Walk a 1.5–2.5m perimeter arc around the area, listen to the procedural Geiger clicks accelerate as you point toward the target, and tap "Start Close Sweep" near surfaces for sub-15 cm lock!
+
+### 2. Run the Python Simulation & Benchmark
 ```bash
 # 30-seed realistic Monte Carlo benchmark
 python simulation/benchmark_snoopar.py
 
-# Interactive single-run simulator
-python simulation/simulate_snoopar.py
+# Multi-scenario trajectory evaluator
+python simulation/evaluate_datasets.py
 ```
 
-### 2. Build & Test the Shared C++20 Core
+### 3. Build & Test the Shared C++20 Core
 ```bash
 # Configure with CMake
-cmake -B core/build -S core
+cmake -B core/build -S core -G Ninja -DCMAKE_BUILD_TYPE=Release
 
 # Compile static library, shared DLL, and test suite
 cmake --build core/build
 
-# Run verification suite (6/6 PASS)
+# Run verification suite (8/8 PASS)
 ./core/build/snoopar_test
 ```
 
-### 3. Use via Python FFI
+### 4. Use via Python FFI
 ```python
 from core.python.snoopar_core import SnoopAREngine
 

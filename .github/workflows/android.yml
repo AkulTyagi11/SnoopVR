@@ -3,6 +3,7 @@ name: Android CI & APK Build
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
     paths:
       - 'android/**'
       - 'core/**'
@@ -18,6 +19,8 @@ jobs:
   build-apk:
     name: Build Android Debug APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -48,3 +51,13 @@ jobs:
         with:
           name: SnoopAR-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+          name: SnoopAR ${{ github.ref_name }}
+          draft: false
+          prerelease: true
+          generate_release_notes: true

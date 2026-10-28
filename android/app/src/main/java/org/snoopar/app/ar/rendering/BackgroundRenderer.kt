@@ -124,46 +124,56 @@ class BackgroundRenderer {
     fun draw(frame: Frame) {
         if (textureId == -1 || program == 0) return
 
-        // Transform display UV coordinates to match aspect ratio and camera orientation
-        frame.transformDisplayUvCoords(quadTexCoords, transformedTexCoords)
+        try {
+            quadCoords.position(0)
+            quadTexCoords.position(0)
+            transformedTexCoords.position(0)
 
-        GLES20.glDisable(GLES20.GL_DEPTH_TEST)
-        GLES20.glDepthMask(false)
+            // Transform display UV coordinates to match aspect ratio and camera orientation
+            frame.transformDisplayUvCoords(quadTexCoords, transformedTexCoords)
 
-        GLES20.glUseProgram(program)
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
-        GLES20.glUniform1i(textureUniform, 0)
+            transformedTexCoords.position(0)
 
-        // Quad positions
-        GLES20.glEnableVertexAttribArray(positionAttrib)
-        GLES20.glVertexAttribPointer(
-            positionAttrib,
-            COORDS_PER_VERTEX,
-            GLES20.GL_FLOAT,
-            false,
-            0,
-            quadCoords
-        )
+            GLES20.glDisable(GLES20.GL_DEPTH_TEST)
+            GLES20.glDepthMask(false)
 
-        // Transformed UV coordinates
-        GLES20.glEnableVertexAttribArray(texCoordAttrib)
-        GLES20.glVertexAttribPointer(
-            texCoordAttrib,
-            TEXCOORDS_PER_VERTEX,
-            GLES20.GL_FLOAT,
-            false,
-            0,
-            transformedTexCoords
-        )
+            GLES20.glUseProgram(program)
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
+            GLES20.glUniform1i(textureUniform, 0)
 
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+            // Quad positions
+            GLES20.glEnableVertexAttribArray(positionAttrib)
+            GLES20.glVertexAttribPointer(
+                positionAttrib,
+                COORDS_PER_VERTEX,
+                GLES20.GL_FLOAT,
+                false,
+                0,
+                quadCoords
+            )
 
-        GLES20.glDisableVertexAttribArray(positionAttrib)
-        GLES20.glDisableVertexAttribArray(texCoordAttrib)
+            // Transformed UV coordinates
+            GLES20.glEnableVertexAttribArray(texCoordAttrib)
+            GLES20.glVertexAttribPointer(
+                texCoordAttrib,
+                TEXCOORDS_PER_VERTEX,
+                GLES20.GL_FLOAT,
+                false,
+                0,
+                transformedTexCoords
+            )
 
-        // Restore OpenGL state for subsequent 3D render passes
-        GLES20.glDepthMask(true)
-        GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+
+            GLES20.glDisableVertexAttribArray(positionAttrib)
+            GLES20.glDisableVertexAttribArray(texCoordAttrib)
+
+            // Restore OpenGL state for subsequent 3D render passes
+            GLES20.glDepthMask(true)
+            GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+        } catch (_: Exception) {
+            // Protect GL thread from unhandled display frame transformation exceptions
+        }
     }
 }

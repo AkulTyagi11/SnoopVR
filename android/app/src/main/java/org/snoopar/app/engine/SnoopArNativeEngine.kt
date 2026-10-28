@@ -41,7 +41,11 @@ class SnoopArNativeEngine(trackerType: Int = 0) : AutoCloseable {
         }
     }
 
-    private var handle: Long = nativeCreateEngine(trackerType)
+    private var handle: Long = try {
+        nativeCreateEngine(trackerType)
+    } catch (_: Throwable) {
+        0L
+    }
 
     fun reset() {
         if (handle != 0L) nativeResetEngine(handle)
