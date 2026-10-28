@@ -1,0 +1,47 @@
+# C++ / CMake build outputs
+build/
+core/build/
+*.exe
+*.dll
+*.dylib
+*.so
+*.a
+*.lib
+*.obj
+*.o
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Rust / Cargo
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Android
+.gradle/
+build/
+*.iml
+.idea/
+local.properties
+*.apk
+*.aab
+
+# iOS
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+DerivedData/
+*.ipa
+
+# OS specific
+.DS_Store
+Thumbs.db
