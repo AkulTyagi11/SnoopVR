@@ -1,3 +1,6 @@
+# Internal docs / reviews
+docs/PROJECT_REVIEW.md
+
 # C++ / CMake build outputs
 build/
 core/build/

@@ -1,7 +1,7 @@
-# 📡 SnoopAR / SnoopVR
+# SnoopAR / SnoopVR
 
 > **Augmented Reality Spatial Pinpointer for Hidden Trackers & Covert Surveillance Devices**  
-> *Turn invisible 2.4 GHz radio waves into a 3D glowing volumetric lock in your phone's camera view.*
+> *Translating 2.4 GHz radio waves into a 3D volumetric lock in your camera viewfinder.*
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Core: C++20](https://img.shields.io/badge/Core-C%2B%2B20_Zero--Dependency-00599C.svg)](core/)
@@ -10,17 +10,17 @@
 
 ---
 
-## 🔍 The Problem SnoopAR Solves
+## The Problem SnoopAR Solves
 
 Bluetooth trackers (Apple AirTags, Samsung Galaxy SmartTags, Google Find My tags, Tile, and custom micro-beacons) have created an unprecedented stalking and vehicle theft crisis. While iOS and Android now display basic notifications (*"Unknown tracker traveling with you"*), **actually finding where the tag is physically hidden is agonizingly difficult**:
 
-1. **"Silent" Stalker Trackers:** Stalkers routinely disable or drill out speaker diaphragms. "Silent AirTags" are widely traded on eBay and Etsy. The official "Play Sound" button does nothing.
-2. **Vague RSSI Numbers:** Third-party BLE scanners only show erratic numbers (`-85 dBm`, `-72 dBm`, `-94 dBm`). Because of 2.4 GHz multipath interference ($\lambda \approx 12.3\text{ cm}$), standing waves cause 15–20 dB signal drops across just 6 cm of movement. An ordinary person cannot locate a coin-sized tag tucked behind a car bumper using bouncing numbers.
+1. **"Silent" Stalker Trackers:** Stalkers routinely disable or drill out speaker diaphragms. "Silent AirTags" are widely traded on secondary markets. The official "Play Sound" button does nothing.
+2. **Vague RSSI Numbers:** Standard BLE scanner apps only display fluctuating decibel numbers (`-85 dBm`, `-72 dBm`, `-94 dBm`). Due to 2.4 GHz multipath reflections ($\lambda \approx 12.3\text{ cm}$), standing waves cause 15–20 dB signal drops across just 6 cm of movement. An ordinary user cannot locate a coin-sized tag tucked behind a car bumper using bouncing numbers.
 3. **No UWB for Targets:** Apple's "Precision Finding" only works for the *registered owner* of an AirTag using their paired U1/U2 chip. Non-owners being stalked are completely locked out of directional UWB finding.
 
 ---
 
-## 💡 The Solution: Synthetic Aperture Inverse Localization
+## The Solution: Synthetic Aperture Inverse Localization
 
 **SnoopAR** fuses **Visual-Inertial Odometry (VIO / ARKit / ARCore)** from commodity smartphone cameras with **low-latency Bluetooth Low Energy (BLE) packet sniffing** to solve the inverse localization problem.
 
@@ -58,26 +58,26 @@ As you walk holding your phone:
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-* 🎯 **Coarse-to-Fine 3D Search:** 
+* **Coarse-to-Fine 3D Search:** 
   * *Stage 1 (Coarse Sector):* A standard 1.5–2.5m walk around the vehicle/room isolates the target quadrant within ~0.8m.
   * *Stage 2 (Guided Close Sweep):* In-camera visual AR prompts guide the user to sweep within 30–50 cm of the suspect surface, where steep near-field path-loss gradients overcome multipath noise to achieve a 15–25 cm physical lock.
-* ☁️ **Volumetric Probability Heat Cloud:** Renders a multi-modal probability density field directly in AR. Rather than forcing an artificial center point (which can land in empty space when signals exhibit ring-shaped or symmetric ambiguity), SnoopAR shows true probability hotspots.
-* 🛰️ **Multi-Protocol Classification:** Auto-detects and fingerprints:
+* **Volumetric Probability Heat Cloud:** Renders a multi-modal probability density field directly in AR. Rather than forcing an artificial center point (which can land in empty space when signals exhibit ring-shaped or symmetric ambiguity), SnoopAR shows true probability hotspots.
+* **Multi-Protocol Classification:** Auto-detects and fingerprints:
   * **Apple Find My** (AirTag, AirTag 2nd gen, third-party Find My tags via Company ID `0x004C` Type `0x12`)
   * **Samsung SmartThings Find** (Galaxy SmartTag / SmartTag2 via Service UUID `0xFD5A` / `0x0075`)
   * **Google Find My Device Network** (FMDN beacon frames via Service UUID `0xFE2C` / `0xFEAA`)
   * **Tile** (Standard / Pro / Mate via Service UUID `0xFEED` / `0x01D3`)
   * **DULT (Detecting Unwanted Location Trackers):** Interoperable Apple/Google standard
   * **Unknown Periodic Beacons:** Custom nRF52/ESP32 stalking emitters
-* 📍 **Heatmap Breadcrumbs:** Leaves a physical trail of color-coded signal nodes floating in AR along your walked trajectory.
-* 🔇 **Directional Geiger Guidance:** Audio ticks and haptic feedback that accelerate when pointing the camera toward the highest probability cluster.
-* 🛡️ **100% On-Device & Privacy-Preserving:** No cloud servers, no account required, completely offline.
+* **Heatmap Breadcrumbs:** Leaves a physical trail of color-coded signal nodes floating in AR along your walked trajectory.
+* **Directional Geiger Guidance:** Audio ticks and haptic feedback that accelerate when pointing the camera toward the highest probability cluster.
+* **100% On-Device & Privacy-Preserving:** No cloud servers, no account required, completely offline.
 
 ---
 
-## 🔬 Benchmark Proof (30-Seed Monte Carlo under Realistic Fading)
+## Benchmark Proof (30-Seed Monte Carlo under Realistic Fading)
 
 Evaluated under **Rayleigh fast fading (10–20 dB nulls), user body blocking (8 dB torso loss), and Gaussian shadowing**:
 
@@ -87,14 +87,14 @@ Evaluated under **Rayleigh fast fading (10–20 dB nulls), user body blocking (8
 | **B. Bayesian Grid with Prior & Student-t** | Distant Arc ($1.5 - 2.5\text{ m}$) | $83.4\text{ cm}$ | $3\%$ | $7\%$ |
 | **C. SnoopAR Coarse-to-Fine Pipeline** | Arc $\to$ Guided Close Sweep ($30\text{ cm}$) | **$32.0\text{ cm}$** | **$20\%$** | **$97\%$** |
 
-Run the benchmark yourself:
+Run the benchmark:
 ```bash
 python simulation/benchmark_snoopar.py
 ```
 
 ---
 
-## ⚡ Quickstart
+## Quickstart
 
 ### 1. Run the Python Simulation & Benchmark
 ```bash
@@ -129,7 +129,7 @@ print(f"Target estimate: {pos}, Radius: {confidence_rad}m")
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```
 SnoopAR/
@@ -146,7 +146,6 @@ SnoopAR/
 │   ├── benchmark_snoopar.py            # 30-seed Monte Carlo Rayleigh fading benchmark
 │   └── simulate_snoopar.py             # Single-run simulator
 ├── docs/
-│   ├── PROJECT_REVIEW.md               # Claude Opus 5.5 architectural critique & resolutions
 │   ├── AR_RENDERING_GUIDE.md           # Android Sceneview & iOS RealityKit blueprints
 │   ├── FEASIBILITY_ANALYSIS.md         # 2.4 GHz RF physics, multipath, and OS sandboxing
 │   ├── SYSTEM_ARCHITECTURE.md          # Dataflow diagrams & thread isolation
@@ -158,7 +157,7 @@ SnoopAR/
 
 ---
 
-## ⚠️ Scope & Prior Art
+## Scope & Prior Art
 
 * **What SnoopAR Locates:** Short-range 2.4 GHz RF tracking tags (Bluetooth Low Energy).
 * **What is Out of Scope:** Dedicated **Cellular / GPS trackers** (magnetic 2G/4G vehicle trackers). These do not emit Bluetooth and cannot be detected via RF sniffing without dedicated cellular spectrum analyzers.
@@ -168,7 +167,7 @@ SnoopAR/
 
 ---
 
-## 🤝 Open Source & Contributing
+## Open Source & Contributing
 
 SnoopAR is designed from day one to be an **open-source, community-driven tool** against surveillance and unwanted tracking. Whether you are an **AR developer**, an **RF/DSP engineer**, a **mobile UI designer**, or an **anti-stalking advocate**, your help is welcome!
 
@@ -176,6 +175,6 @@ Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) to see how you can get 
 
 ---
 
-## ⚖️ License
+## License
 
 Distributed under the Apache 2.0 License. See `LICENSE` for details.
