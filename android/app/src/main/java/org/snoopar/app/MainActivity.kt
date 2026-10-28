@@ -31,7 +31,7 @@ import org.snoopar.app.engine.AppGuidanceHint
 import org.snoopar.app.engine.AppSearchState
 import org.snoopar.app.engine.SnoopArNativeEngine
 import org.snoopar.app.engine.TargetBearing
-import org.snoopar.app.haptics.GeigerHapticFeedback
+import org.snoopar.app.feedback.GeigerFeedbackManager
 import org.snoopar.app.ui.SnoopArScreen
 import kotlin.math.sqrt
 
@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var arCoreController: ArCoreController
     private lateinit var glRenderer: ArGlRenderer
     private lateinit var glSurfaceView: GLSurfaceView
-    private lateinit var geigerHaptics: GeigerHapticFeedback
+    private lateinit var geigerFeedback: GeigerFeedbackManager
     private var trackerScanner: TrackerScanner? = null
     private var userRequestedInstall = true
 
@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
     private val targetName = mutableStateOf("Scanning for trackers...")
     private val confidenceRadius = mutableStateOf<Float?>(null)
     private val targetBearing = mutableStateOf<TargetBearing?>(null)
+    private val isAudioMuted = mutableStateOf(false)
     private val selectedAddress = mutableStateOf<String?>(null)
 
     private val permissionLauncher = registerForActivityResult(
@@ -71,7 +72,7 @@ class MainActivity : ComponentActivity() {
         nativeEngine = SnoopArNativeEngine(0) // AirTag default
         arCoreController = ArCoreController(this)
         glRenderer = ArGlRenderer(arCoreController)
-        geigerHaptics = GeigerHapticFeedback(this)
+        geigerFeedback = GeigerFeedbackManager(this)
 
         glSurfaceView = GLSurfaceView(this).apply {
             setEGLContextClientVersion(2)
@@ -101,6 +102,7 @@ class MainActivity : ComponentActivity() {
                     targetName = targetName.value,
                     confidenceRadius = confidenceRadius.value,
                     targetBearing = targetBearing.value,
+                    isAudioMuted = isAudioMuted.value,
                     trackers = trackers,
                     selectedAddress = selectedAddress.value,
                     onSelectTracker = { tracker -> onSelectTargetTracker(tracker) },
@@ -108,6 +110,10 @@ class MainActivity : ComponentActivity() {
                         nativeEngine.startCloseSweep()
                         searchState.value = AppSearchState.CLOSE_SWEEP_ACTIVE
                         guidanceHint.value = AppGuidanceHint.APPROACH_SURFACE
+                    },
+                    onToggleAudioMute = {
+                        isAudioMuted.value = !isAudioMuted.value
+                        geigerFeedback.setAudioMuted(isAudioMuted.value)
                     },
                     onReset = {
                         nativeEngine.reset()
@@ -168,7 +174,7 @@ class MainActivity : ComponentActivity() {
                     val dist = sqrt(dx * dx + dy * dy + dz * dz)
                     if (dist > 1e-4f) {
                         val dot = (pose.gazeX * (dx / dist)) + (pose.gazeY * (dy / dist)) + (pose.gazeZ * (dz / dist))
-                        geigerHaptics.update(dot, dist)
+                        geigerFeedback.update(dot, dist)
                     }
                 }
             }
@@ -262,6 +268,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         trackerScanner?.stop()
+        geigerFeedback.release()
         glSurfaceView.onPause()
         arCoreController.destroy()
         nativeEngine.close()

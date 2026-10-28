@@ -119,8 +119,20 @@ int main() {
     CHECK(azimuth > 20.0f && azimuth < 85.0f, "Target at positive X must produce positive right azimuth angle");
     std::cout << "[PASS] Test 7: Directional bearing verified (Azimuth: " << azimuth << " deg, Dist: " << dist << " m)\n";
 
+    // 8. Test Surface Plane Constraint (ARCore/ARKit Plane Snapping)
+    // Constrain to vertical surface at true target depth Z = -1.20m with normal along +Z
+    engine.set_surface_plane(Vec3(0.0f, 0.0f, -1.20f), Vec3(0.0f, 0.0f, 1.0f), 0.05f);
+    Vec3 snapped_est;
+    float snapped_rad = 1.0f;
+    bool plane_ok = engine.get_estimate(snapped_est, snapped_rad);
+    CHECK(plane_ok, "Estimate must succeed with surface plane constraint");
+    float z_plane_err = std::abs(snapped_est.z - (-1.20f));
+    CHECK(z_plane_err <= 0.08f, "Surface plane prior must constrain estimate Z within 8 cm of physical plane");
+    engine.clear_surface_plane();
+    std::cout << "[PASS] Test 8: Surface plane snapping verified (Z Error: " << z_plane_err * 100.0f << " cm)\n";
+
     std::cout << "==================================================\n";
-    std::cout << " All 7 Core Engine Tests Passed with ARCore Y-Up Axes!\n";
+    std::cout << " All 8 Core Engine Tests Passed with ARCore Y-Up Axes!\n";
     std::cout << "==================================================\n";
     return 0;
 }

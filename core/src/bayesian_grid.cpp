@@ -86,8 +86,29 @@ void BayesianGrid::update_all_voxels(const TrackerProfile& profile) {
         for (int j = 0; j < 3; ++j) {
             sum_exp += std::exp(l_hyps[j] - max_l);
         }
-        log_likelihoods_[i] = max_l + std::log(sum_exp);
+        float log_lik = max_l + std::log(sum_exp);
+
+        // Apply surface plane prior constraint if active
+        if (has_plane_constraint_) {
+            Vec3 diff = grid_points_[i] - plane_point_;
+            float dist_to_plane = std::abs(diff.dot(plane_normal_));
+            float plane_prior = -0.5f * (dist_to_plane / plane_sigma_) * (dist_to_plane / plane_sigma_);
+            log_lik += plane_prior;
+        }
+
+        log_likelihoods_[i] = log_lik;
     }
+}
+
+void BayesianGrid::set_surface_plane(const Vec3& plane_point, const Vec3& plane_normal, float sigma_meters) {
+    has_plane_constraint_ = true;
+    plane_point_ = plane_point;
+    plane_normal_ = plane_normal.normalized();
+    plane_sigma_ = std::max(sigma_meters, 0.02f);
+}
+
+void BayesianGrid::clear_surface_plane() {
+    has_plane_constraint_ = false;
 }
 
 bool BayesianGrid::get_estimate(Vec3& out_position, float& out_confidence_radius) const {

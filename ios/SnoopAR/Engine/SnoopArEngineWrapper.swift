@@ -156,4 +156,18 @@ public final class SnoopArEngine {
             )
         }
     }
+
+    public func setSurfacePlane(
+        px: Float, py: Float, pz: Float,
+        nx: Float, ny: Float, nz: Float,
+        sigmaMeters: Float = 0.08
+    ) {
+        guard let h = handle else { return }
+        snoopar_set_surface_plane(h, px, py, pz, nx, ny, nz, sigmaMeters)
+    }
+
+    public func clearSurfacePlane() {
+        guard let h = handle else { return }
+        snoopar_clear_surface_plane(h)
+    }
 }

@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,8 +36,10 @@ fun ArOverlayHud(
     confidenceRadius: Float?,
     trackerCount: Int,
     targetBearing: TargetBearing? = null,
+    isAudioMuted: Boolean = false,
     onOpenTargetSelector: () -> Unit,
     onStartCloseSweep: () -> Unit,
+    onToggleAudioMute: () -> Unit = {},
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -217,6 +221,20 @@ fun ArOverlayHud(
                             ) {
                                 Text("Begin Close Sweep", fontWeight = FontWeight.Bold)
                             }
+                        }
+
+                        IconButton(
+                            onClick = onToggleAudioMute,
+                            modifier = Modifier.background(
+                                if (isAudioMuted) Color(0x33F44336) else Color(0x334CAF50),
+                                RoundedCornerShape(8.dp)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (isAudioMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                                contentDescription = if (isAudioMuted) "Unmute Geiger Audio" else "Mute Geiger Audio",
+                                tint = Color.White
+                            )
                         }
 
                         IconButton(

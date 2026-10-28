@@ -109,6 +109,22 @@ class SnoopArNativeEngine(trackerType: Int = 0) : AutoCloseable {
         return list
     }
 
+    fun setSurfacePlane(
+        px: Float, py: Float, pz: Float,
+        nx: Float, ny: Float, nz: Float,
+        sigmaMeters: Float = 0.08f
+    ) {
+        if (handle != 0L) {
+            nativeSetSurfacePlane(handle, px, py, pz, nx, ny, nz, sigmaMeters)
+        }
+    }
+
+    fun clearSurfacePlane() {
+        if (handle != 0L) {
+            nativeClearSurfacePlane(handle)
+        }
+    }
+
     override fun close() {
         if (handle != 0L) {
             nativeDestroyEngine(handle)
@@ -138,4 +154,11 @@ class SnoopArNativeEngine(trackerType: Int = 0) : AutoCloseable {
         gazeX: Float, gazeY: Float, gazeZ: Float
     ): FloatArray?
     private external fun nativeGetVoxelCloud(handle: Long, maxCount: Int): FloatArray?
+    private external fun nativeSetSurfacePlane(
+        handle: Long,
+        px: Float, py: Float, pz: Float,
+        nx: Float, ny: Float, nz: Float,
+        sigmaMeters: Float
+    )
+    private external fun nativeClearSurfacePlane(handle: Long)
 }

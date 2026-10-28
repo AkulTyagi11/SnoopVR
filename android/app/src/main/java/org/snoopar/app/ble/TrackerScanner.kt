@@ -25,6 +25,8 @@ class TrackerScanner(
 
     private var isScanning = false
     private var targetedAddress: String? = null
+    private var lastScanStartTimeMs = 0L
+    private val minScanIntervalMs = 1500L
 
     private val _discoveredTrackers = MutableStateFlow<List<DiscoveredTracker>>(emptyList())
     val discoveredTrackers: StateFlow<List<DiscoveredTracker>> = _discoveredTrackers.asStateFlow()
@@ -51,7 +53,9 @@ class TrackerScanner(
 
     @SuppressLint("MissingPermission")
     fun start() {
+        val now = SystemClock.uptimeMillis()
         if (isScanning || bluetoothAdapter == null || !bluetoothAdapter.isEnabled) return
+        if (now - lastScanStartTimeMs < minScanIntervalMs) return
         val scanner = bluetoothAdapter.bluetoothLeScanner ?: return
 
         val settings = ScanSettings.Builder()
@@ -59,8 +63,13 @@ class TrackerScanner(
             .setReportDelay(0)
             .build()
 
-        scanner.startScan(null, settings, scanCallback)
-        isScanning = true
+        try {
+            scanner.startScan(null, settings, scanCallback)
+            isScanning = true
+            lastScanStartTimeMs = now
+        } catch (_: Exception) {
+            isScanning = false
+        }
     }
 
     @SuppressLint("MissingPermission")

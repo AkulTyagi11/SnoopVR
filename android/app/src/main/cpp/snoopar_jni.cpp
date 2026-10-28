@@ -233,4 +233,36 @@ Java_org_snoopar_app_engine_SnoopArNativeEngine_nativeGetVoxelCloud(
     }
 }
 
+JNIEXPORT void JNICALL
+Java_org_snoopar_app_engine_SnoopArNativeEngine_nativeSetSurfacePlane(
+    JNIEnv* env, jobject thiz, jlong handle,
+    jfloat px, jfloat py, jfloat pz,
+    jfloat nx, jfloat ny, jfloat nz,
+    jfloat sigma_meters
+) {
+    if (handle == 0) return;
+    try {
+        snoopar_set_surface_plane(
+            reinterpret_cast<SnoopAREngineHandle>(handle),
+            px, py, pz,
+            nx, ny, nz,
+            sigma_meters
+        );
+    } catch (const std::exception& e) {
+        LOGE("nativeSetSurfacePlane exception: %s", e.what());
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_org_snoopar_app_engine_SnoopArNativeEngine_nativeClearSurfacePlane(
+    JNIEnv* env, jobject thiz, jlong handle
+) {
+    if (handle == 0) return;
+    try {
+        snoopar_clear_surface_plane(reinterpret_cast<SnoopAREngineHandle>(handle));
+    } catch (const std::exception& e) {
+        LOGE("nativeClearSurfacePlane exception: %s", e.what());
+    }
+}
+
 } // extern "C"

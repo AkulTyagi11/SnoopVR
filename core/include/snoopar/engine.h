@@ -36,11 +36,21 @@ public:
     // Transitions from coarse stage to guided close sweep around the current estimate
     void start_close_sweep();
 
+    // Surface plane prior constraint (e.g. detected car bumper, wall, or floor)
+    void set_surface_plane(const Vec3& plane_point, const Vec3& plane_normal, float sigma_meters = 0.08f);
+    void clear_surface_plane();
+    bool has_surface_plane() const { return has_plane_constraint_; }
+
     size_t get_observation_count() const { return observations_.size(); }
 
 private:
     TrackerProfile profile_;
     SearchState state_{SearchState::CoarseSearch};
+
+    bool has_plane_constraint_{false};
+    Vec3 plane_point_{0.0f, 0.0f, 0.0f};
+    Vec3 plane_normal_{0.0f, 1.0f, 0.0f};
+    float plane_sigma_{0.08f};
 
     std::vector<BleObservation> observations_;
     BayesianGrid coarse_grid_;

@@ -149,6 +149,17 @@ class SnoopAREngine:
         ]
         self._lib.snoopar_get_voxel_cloud.restype = ctypes.c_size_t
 
+        self._lib.snoopar_set_surface_plane.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_float, ctypes.c_float, ctypes.c_float,
+            ctypes.c_float, ctypes.c_float, ctypes.c_float,
+            ctypes.c_float,
+        ]
+        self._lib.snoopar_set_surface_plane.restype = None
+
+        self._lib.snoopar_clear_surface_plane.argtypes = [ctypes.c_void_p]
+        self._lib.snoopar_clear_surface_plane.restype = None
+
     def __del__(self):
         if hasattr(self, "_handle") and self._handle:
             self._lib.snoopar_destroy_engine(self._handle)
@@ -227,3 +238,19 @@ class SnoopAREngine:
             v = voxel_array[i]
             result.append((v.x, v.y, v.z, v.probability))
         return result
+
+    def set_surface_plane(
+        self,
+        px: float, py: float, pz: float,
+        nx: float, ny: float, nz: float,
+        sigma_meters: float = 0.08
+    ):
+        self._lib.snoopar_set_surface_plane(
+            self._handle,
+            ctypes.c_float(px), ctypes.c_float(py), ctypes.c_float(pz),
+            ctypes.c_float(nx), ctypes.c_float(ny), ctypes.c_float(nz),
+            ctypes.c_float(sigma_meters)
+        )
+
+    def clear_surface_plane(self):
+        self._lib.snoopar_clear_surface_plane(self._handle)

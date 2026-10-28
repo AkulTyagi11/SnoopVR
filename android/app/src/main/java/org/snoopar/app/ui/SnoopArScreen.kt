@@ -31,10 +31,12 @@ fun SnoopArScreen(
     targetName: String,
     confidenceRadius: Float?,
     targetBearing: TargetBearing? = null,
+    isAudioMuted: Boolean = false,
     trackers: List<DiscoveredTracker>,
     selectedAddress: String?,
     onSelectTracker: (DiscoveredTracker) -> Unit,
     onStartCloseSweep: () -> Unit,
+    onToggleAudioMute: () -> Unit = {},
     onReset: () -> Unit
 ) {
     var showTargetSelector by remember { mutableStateOf(false) }
@@ -56,8 +58,10 @@ fun SnoopArScreen(
             confidenceRadius = confidenceRadius,
             trackerCount = trackers.size,
             targetBearing = targetBearing,
+            isAudioMuted = isAudioMuted,
             onOpenTargetSelector = { showTargetSelector = true },
             onStartCloseSweep = onStartCloseSweep,
+            onToggleAudioMute = onToggleAudioMute,
             onReset = onReset,
             modifier = Modifier.fillMaxSize()
         )

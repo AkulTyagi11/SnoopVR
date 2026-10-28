@@ -59,6 +59,15 @@ size_t snoopar_get_voxel_cloud(
     size_t max_count
 );
 
+// Surface Constraints (LiDAR / ARCore Plane Anchors)
+void snoopar_set_surface_plane(
+    SnoopAREngineHandle handle,
+    float px, float py, float pz,
+    float nx, float ny, float nz,
+    float sigma_meters
+);
+void snoopar_clear_surface_plane(SnoopAREngineHandle handle);
+
 #ifdef __cplusplus
 }
 #endif

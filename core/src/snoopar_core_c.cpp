@@ -133,4 +133,23 @@ size_t snoopar_get_voxel_cloud(
     return voxels.size();
 }
 
+void snoopar_set_surface_plane(
+    SnoopAREngineHandle handle,
+    float px, float py, float pz,
+    float nx, float ny, float nz,
+    float sigma_meters
+) {
+    if (!handle) return;
+    static_cast<Engine*>(handle)->set_surface_plane(
+        Vec3(px, py, pz),
+        Vec3(nx, ny, nz),
+        sigma_meters
+    );
+}
+
+void snoopar_clear_surface_plane(SnoopAREngineHandle handle) {
+    if (!handle) return;
+    static_cast<Engine*>(handle)->clear_surface_plane();
+}
+
 } // extern "C"

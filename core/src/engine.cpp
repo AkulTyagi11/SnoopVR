@@ -14,6 +14,9 @@ void Engine::reset() {
     state_ = SearchState::CoarseSearch;
     observations_.clear();
     coarse_grid_.reset(Vec3(0.0f, 0.0f, 0.0f), Vec3(4.0f, 1.8f, 4.0f), 0.15f);
+    if (has_plane_constraint_) {
+        coarse_grid_.set_surface_plane(plane_point_, plane_normal_, plane_sigma_);
+    }
     fine_grid_.reset();
     trajectory_analyzer_.reset();
 }
@@ -37,6 +40,9 @@ void Engine::add_observation(const Vec3& observer_pos, const Vec3& camera_gaze, 
     if (observations_.size() == 1) {
         Vec3 start_center = observer_pos + camera_gaze.normalized() * 0.8f;
         coarse_grid_.reset(start_center, Vec3(5.0f, 2.0f, 5.0f), 0.18f);
+        if (has_plane_constraint_) {
+            coarse_grid_.set_surface_plane(plane_point_, plane_normal_, plane_sigma_);
+        }
     }
 
     coarse_grid_.add_observation(obs, profile_);
@@ -66,6 +72,9 @@ void Engine::start_close_sweep() {
         float span_xz = std::max(1.6f, std::min(rad * 1.2f, 2.2f));
         float span_y = std::max(0.8f, std::min(rad * 0.8f, 1.4f));
         fine_grid_ = std::make_unique<BayesianGrid>(coarse_pos, Vec3(span_xz, span_y, span_xz), 0.08f);
+        if (has_plane_constraint_) {
+            fine_grid_->set_surface_plane(plane_point_, plane_normal_, plane_sigma_);
+        }
         fine_grid_->recompute_all(observations_, profile_);
         state_ = SearchState::CloseSweepActive;
     }
@@ -125,6 +134,38 @@ GuidanceHint Engine::get_guidance_hint() const {
     float rad = 5.0f;
     get_estimate(est, rad);
     return trajectory_analyzer_.evaluate_guidance(state_, rad);
+}
+
+void Engine::set_surface_plane(const Vec3& plane_point, const Vec3& plane_normal, float sigma_meters) {
+    has_plane_constraint_ = true;
+    plane_point_ = plane_point;
+    plane_normal_ = plane_normal.normalized();
+    plane_sigma_ = std::max(sigma_meters, 0.02f);
+
+    coarse_grid_.set_surface_plane(plane_point_, plane_normal_, plane_sigma_);
+    if (fine_grid_) {
+        fine_grid_->set_surface_plane(plane_point_, plane_normal_, plane_sigma_);
+    }
+    if (!observations_.empty()) {
+        coarse_grid_.recompute_all(observations_, profile_);
+        if (fine_grid_) {
+            fine_grid_->recompute_all(observations_, profile_);
+        }
+    }
+}
+
+void Engine::clear_surface_plane() {
+    has_plane_constraint_ = false;
+    coarse_grid_.clear_surface_plane();
+    if (fine_grid_) {
+        fine_grid_->clear_surface_plane();
+    }
+    if (!observations_.empty()) {
+        coarse_grid_.recompute_all(observations_, profile_);
+        if (fine_grid_) {
+            fine_grid_->recompute_all(observations_, profile_);
+        }
+    }
 }
 
 } // namespace snoopar
