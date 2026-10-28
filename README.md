@@ -139,7 +139,10 @@ SnoopAR/
 │   ├── src/                            # High-performance C++20 implementation
 │   ├── tests/test_engine.cpp           # C++ test runner (12.5 cm lock in simulation)
 │   └── python/snoopar_core.py          # Python ctypes wrapper
-├── tools/android-data-logger/          # Phase 0 Empirical Data Capture App
+├── android/                            # Native Android AR Application (Jetpack Compose + ARCore)
+│   ├── app/src/main/cpp/               # JNI bindings linking to shared C++ core
+│   └── app/src/main/java/org/snoopar/  # AR rendering, BLE scanning, HUD, Geiger haptics
+├── tools/android-data-logger/          # Empirical Data Capture App
 │   ├── app/                            # Android Jetpack Compose + ARCore + BLE capture app
 │   └── scripts/replay_session.py       # Offline session replay & evaluation
 ├── simulation/

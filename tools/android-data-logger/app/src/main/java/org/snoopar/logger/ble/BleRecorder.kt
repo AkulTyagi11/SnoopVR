@@ -3,9 +3,9 @@ package org.snoopar.logger.ble
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.os.ParcelUuid
 import android.os.SystemClock
 
 data class BleScanEvent(
@@ -20,6 +20,13 @@ class BleRecorder(
     private val bluetoothAdapter: BluetoothAdapter?,
     private val onPacketReceived: (BleScanEvent) -> Unit
 ) {
+    companion object {
+        val UUID_SAMSUNG_SMARTTAG = ParcelUuid.fromString("0000FD5A-0000-1000-8000-00805F9B34FB")
+        val UUID_GOOGLE_FMDN = ParcelUuid.fromString("0000FEAA-0000-1000-8000-00805F9B34FB")
+        val UUID_TILE_FEED = ParcelUuid.fromString("0000FEED-0000-1000-8000-00805F9B34FB")
+        val UUID_TILE_FEEC = ParcelUuid.fromString("0000FEEC-0000-1000-8000-00805F9B34FB")
+    }
+
     private var isScanning = false
 
     private val scanCallback = object : ScanCallback() {
@@ -32,7 +39,7 @@ class BleRecorder(
         }
 
         override fun onScanFailed(errorCode: Int) {
-            // Handle scan failure
+            isScanning = false
         }
     }
 
@@ -46,20 +53,22 @@ class BleRecorder(
             .setReportDelay(0)
             .build()
 
-        // Scan promiscuously without filtering so we catch all tag protocols
-        val filters = listOf<ScanFilter>()
-
-        scanner.startScan(filters, settings, scanCallback)
+        scanner.startScan(null, settings, scanCallback)
         isScanning = true
     }
 
     @SuppressLint("MissingPermission")
     fun stop() {
-        if (!isScanning || bluetoothAdapter == null) return
-        val scanner = bluetoothAdapter.bluetoothLeScanner ?: return
-        try {
-            scanner.stopScan(scanCallback)
-        } catch (_: Exception) {}
+        if (!isScanning || bluetoothAdapter == null) {
+            isScanning = false
+            return
+        }
+        val scanner = bluetoothAdapter.bluetoothLeScanner
+        if (scanner != null) {
+            try {
+                scanner.stopScan(scanCallback)
+            } catch (_: Exception) {}
+        }
         isScanning = false
     }
 
@@ -69,7 +78,7 @@ class BleRecorder(
         val rawHex = rawBytes.joinToString("") { "%02x".format(it) }
         val deviceId = result.device?.address ?: "UNKNOWN"
         val rssi = result.rssi
-        val timestampNs = SystemClock.elapsedRealtimeNanos()
+        val timestampNs = if (result.timestampNanos > 0) result.timestampNanos else SystemClock.elapsedRealtimeNanos()
 
         val tagType = classifyTag(record)
 
@@ -83,30 +92,33 @@ class BleRecorder(
         onPacketReceived(event)
     }
 
-    private fun classifyTag(record: android.bluetooth.le.ScanRecord): String {
-        // 1. Apple Find My (Company ID 0x004c, Type 0x12)
+    fun classifyTag(record: android.bluetooth.le.ScanRecord): String {
+        // 1. Apple Find My (Company ID 0x004c, Type 0x12, length >= 25 bytes)
         val appleBytes = record.getManufacturerSpecificData(0x004c)
-        if (appleBytes != null && appleBytes.isNotEmpty()) {
-            if (appleBytes[0] == 0x12.toByte()) {
-                return "Apple_FindMy_AirTag"
-            }
-            return "Apple_Other_004c"
+        if (appleBytes != null && appleBytes.size >= 25 && appleBytes[0] == 0x12.toByte()) {
+            return "Apple_FindMy_Tag"
         }
 
-        // 2. Samsung SmartThings Find (Service 0xFD5A or Company 0x0075)
-        val serviceUuids = record.serviceUuids?.map { it.uuid.toString().uppercase() } ?: emptyList()
-        if (serviceUuids.any { it.contains("FD5A") } || record.getManufacturerSpecificData(0x0075) != null) {
+        // 2. Samsung SmartThings Find (Service data on 0xFD5A)
+        val samsungServiceData = record.getServiceData(UUID_SAMSUNG_SMARTTAG)
+        if (samsungServiceData != null || record.serviceUuids?.contains(UUID_SAMSUNG_SMARTTAG) == true) {
             return "Samsung_SmartTag"
         }
 
-        // 3. Tile (Service 0xFEED or Company 0x01D3)
-        if (serviceUuids.any { it.contains("FEED") } || record.getManufacturerSpecificData(0x01D3) != null) {
+        // 3. Tile Tracker (Exact 16-bit match on 0xFEED or 0xFEEC)
+        if (record.serviceUuids?.contains(UUID_TILE_FEED) == true ||
+            record.serviceUuids?.contains(UUID_TILE_FEEC) == true ||
+            record.getManufacturerSpecificData(0x01D3) != null) {
             return "Tile_Tracker"
         }
 
-        // 4. Google Find My Device (Service 0xFE2C / 0xFEAA)
-        if (serviceUuids.any { it.contains("FE2C") || it.contains("FEAA") }) {
-            return "Google_FindMyDevice"
+        // 4. Google Find My Device (Eddystone 0xFEAA with frame type 0x40 or 0x41)
+        val feaaData = record.getServiceData(UUID_GOOGLE_FMDN)
+        if (feaaData != null && feaaData.isNotEmpty()) {
+            val frameType = feaaData[0].toInt() and 0xFF
+            if (frameType == 0x40 || frameType == 0x41) {
+                return "Google_FindMyDevice"
+            }
         }
 
         return "Generic_BLE"

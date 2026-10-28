@@ -5,13 +5,13 @@ namespace snoopar {
 
 Engine::Engine(TrackerType type)
     : profile_(snoopar::get_tracker_profile(type)),
-      coarse_grid_(Vec3(0.0f, 0.0f, 0.0f), Vec3(3.5f, 3.5f, 1.6f), 0.15f) {
+      coarse_grid_(Vec3(0.0f, 0.0f, 0.0f), Vec3(4.0f, 1.8f, 4.0f), 0.15f) {
 }
 
 void Engine::reset() {
     state_ = SearchState::CoarseSearch;
     observations_.clear();
-    coarse_grid_.reset(Vec3(0.0f, 0.0f, 0.0f), Vec3(3.5f, 3.5f, 1.6f), 0.15f);
+    coarse_grid_.reset(Vec3(0.0f, 0.0f, 0.0f), Vec3(4.0f, 1.8f, 4.0f), 0.15f);
     fine_grid_.reset();
     trajectory_analyzer_.reset();
 }
@@ -30,6 +30,11 @@ void Engine::add_observation(const Vec3& observer_pos, const Vec3& camera_gaze, 
     BleObservation obs{timestamp_ns, observer_pos, camera_gaze.normalized(), rssi};
     observations_.push_back(obs);
     trajectory_analyzer_.add_pose(observer_pos);
+
+    // If this is the first observation, re-center the coarse grid on the user's start position
+    if (observations_.size() == 1) {
+        coarse_grid_.reset(observer_pos, Vec3(4.0f, 1.8f, 4.0f), 0.15f);
+    }
 
     coarse_grid_.add_observation(obs, profile_);
 
@@ -54,7 +59,8 @@ void Engine::start_close_sweep() {
     float rad = 1.0f;
     if (coarse_grid_.get_estimate(coarse_pos, rad)) {
         // Instantiate high-resolution fine grid (5 cm voxels) around the coarse quadrant
-        fine_grid_ = std::make_unique<BayesianGrid>(coarse_pos, Vec3(1.4f, 1.4f, 0.8f), 0.05f);
+        // ARCore Y-up: X=lateral, Y=height, Z=depth
+        fine_grid_ = std::make_unique<BayesianGrid>(coarse_pos, Vec3(1.4f, 0.8f, 1.4f), 0.05f);
         fine_grid_->recompute_all(observations_, profile_);
         state_ = SearchState::CloseSweepActive;
     }

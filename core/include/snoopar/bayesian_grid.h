@@ -9,7 +9,7 @@ class BayesianGrid {
 public:
     BayesianGrid(
         Vec3 center = Vec3(0.0f, 0.0f, 0.0f),
-        Vec3 span = Vec3(3.0f, 3.0f, 1.6f),
+        Vec3 span = Vec3(3.5f, 1.6f, 3.5f), // ARCore: X=lateral, Y=height, Z=depth
         float resolution = 0.15f
     );
 
@@ -33,6 +33,7 @@ public:
 
 private:
     void build_grid();
+    void update_all_voxels(const TrackerProfile& profile);
 
     Vec3 center_;
     Vec3 span_;
@@ -40,6 +41,7 @@ private:
 
     std::vector<Vec3> grid_points_;
     std::vector<float> log_likelihoods_;
+    std::vector<BleObservation> observations_;
 };
 
 } // namespace snoopar

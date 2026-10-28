@@ -158,6 +158,15 @@ class MainActivity : ComponentActivity() {
         targetName.value = "${tracker.family.displayName} (${tracker.deviceAddress.takeLast(5)})"
         nativeEngine.setTrackerType(tracker.family.trackerTypeId)
         trackerScanner?.setTargetDevice(tracker.deviceAddress)
+
+        // Reset search pipeline for new target
+        nativeEngine.reset()
+        glRenderer.breadcrumbRenderer.clear()
+        glRenderer.updateVoxelCloud(emptyList())
+        observationCount.longValue = 0L
+        searchState.value = AppSearchState.COARSE_SEARCH
+        guidanceHint.value = AppGuidanceHint.CONTINUE_SWEEP
+        confidenceRadius.value = null
     }
 
     private fun checkAndRequestPermissions() {

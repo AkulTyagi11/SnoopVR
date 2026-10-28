@@ -51,11 +51,14 @@ class VoxelCloudRenderer {
 
     fun updateVoxels(voxels: List<VoxelPoint>) {
         if (voxels.isEmpty()) {
-            pointCount = 0
+            synchronized(this) {
+                pointCount = 0
+                vertexBuffer = null
+            }
             return
         }
-        pointCount = voxels.size
-        val floatArray = FloatArray(pointCount * 4)
+        val count = voxels.size
+        val floatArray = FloatArray(count * 4)
         for (i in voxels.indices) {
             val v = voxels[i]
             floatArray[i * 4 + 0] = v.x
@@ -64,16 +67,26 @@ class VoxelCloudRenderer {
             floatArray[i * 4 + 3] = v.probability
         }
 
-        vertexBuffer = ByteBuffer.allocateDirect(floatArray.size * 4)
+        val buffer = ByteBuffer.allocateDirect(floatArray.size * 4)
             .order(ByteOrder.nativeOrder())
             .asFloatBuffer().apply {
                 put(floatArray)
                 position(0)
             }
+
+        synchronized(this) {
+            vertexBuffer = buffer
+            pointCount = count
+        }
     }
 
     fun draw(mvpMatrix: FloatArray) {
-        if (pointCount == 0 || vertexBuffer == null) return
+        val (buffer, count) = synchronized(this) {
+            val buf = vertexBuffer ?: return
+            val cnt = pointCount
+            if (cnt == 0) return
+            Pair(buf, cnt)
+        }
 
         GLES20.glUseProgram(program)
         GLES20.glEnable(GLES20.GL_BLEND)
@@ -83,9 +96,9 @@ class VoxelCloudRenderer {
         GLES20.glUniformMatrix4fv(mvpMatrixHandle, 1, false, mvpMatrix, 0)
 
         GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 4, GLES20.GL_FLOAT, false, 4 * 4, vertexBuffer)
+        GLES20.glVertexAttribPointer(positionHandle, 4, GLES20.GL_FLOAT, false, 4 * 4, buffer)
 
-        GLES20.glDrawArrays(GLES20.GL_POINTS, 0, pointCount)
+        GLES20.glDrawArrays(GLES20.GL_POINTS, 0, count)
 
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDepthMask(true)

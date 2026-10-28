@@ -1,74 +1,99 @@
-# 🗺️ SnoopAR Development Roadmap
+# SnoopAR: Development Roadmap
 
-This roadmap tracks the planned milestones for **SnoopAR**, progressing from mathematical verification to production mobile releases.
-
----
-
-## 📍 Phase 1: Mathematical Foundations & Synthetic Simulator
-> **Goal:** Validate the 5D Bayesian Particle Filter against simulated multipath noise before touching mobile hardware.
-
-- [ ] **1.1 Core Math Engine in Rust (`snoopar-core`):**
-  - Implement the 5D state representation $[x_t, y_t, z_t, A, n]$.
-  - Implement Log-Distance Path Loss likelihood evaluation.
-  - Implement $\mathcal{O}(N)$ Low-Variance Resampling and particle jittering.
-- [ ] **1.2 Python / Rust Synthetic Test Harness:**
-  - Simulate a static emitter at $(1.5, 0.2, 0.8)\text{ m}$.
-  - Simulate an observer moving in an arc with Rayleigh multipath noise ($\sigma = 4.5\text{ dB}$).
-  - Benchmark convergence rate ($< 25$ samples to achieve $< 25\text{ cm}$ error).
-- [ ] **1.3 Collinearity Detection:**
-  - Implement SVD-based trajectory collinearity analyzer to warn against straight-line sweeps.
+This roadmap tracks the development milestones for **SnoopAR**, progressing from mathematical verification and shared engine implementation to mobile platform integration and public open-source releases.
 
 ---
 
-## 📱 Phase 2: Mobile Sensor Ingestion & Temporal Sync
-> **Goal:** Capture high-fidelity synchronized sensor streams on Android and iOS devices.
+## Phase 0: Empirical Data Capture & Hardware Verification
+> **Status: Complete**  
+> **Goal:** Build a production Android tool to capture real-world synchronized ARCore poses and BLE RSSI packets with ground-truth coordinates.
 
-- [ ] **2.1 Android BLE Ingestion:**
-  - Build `BluetoothLeScanner` foreground service with `SCAN_MODE_LOW_LATENCY`.
-  - Parse Apple Find My, Samsung SmartTag, Tile, and Google Find My Device payloads.
-- [ ] **2.2 iOS CoreBluetooth Ingestion:**
-  - Build `CBCentralManager` scanner with duplicate packet delivery enabled.
-  - Fingerprint tracking tags using manufacturer and service data keys.
-- [ ] **2.3 AR Visual-Inertial Odometry Pipeline:**
-  - Initialize ARCore (Android) and ARKit (iOS) sessions.
-  - Extract 6-DoF camera poses $[x, y, z, q_w, q_x, q_y, q_z]$ at 60 Hz.
-- [ ] **2.4 Microsecond Temporal Synchronizer:**
-  - Build circular pose buffer with linear/spherical interpolation for exact BLE arrival timestamp matching.
+- [x] **0.1 Android Data Logger (`tools/android-data-logger`):**
+  - Continuous `GLSurfaceView.Renderer` camera session running at real ARCore rate (~30 Hz).
+  - AR plane hit-testing to pin physical ground-truth tag coordinates on tap.
+  - Low-latency BLE scanner capturing hardware arrival timestamps (`result.timestampNanos`).
+  - Thread-safe CSV session writer with periodic buffer flushing and structured `metadata.json` export.
+- [x] **0.2 Replay & Evaluation Tooling:**
+  - Python session replay script (`scripts/replay_session.py`) with microsecond pose interpolation.
+  - Filters out uninitialized / non-`TRACKING` frames and evaluates tracking error against ground truth.
 
 ---
 
-## 🔮 Phase 3: AR Visualization & Live Localization
-> **Goal:** Connect the math engine to real-time 3D camera holograms.
+## Phase 1: Shared Core Engine & Mathematical Verification
+> **Status: Complete**  
+> **Goal:** Implement the portable zero-dependency core localization engine and benchmark against multipath fading.
 
-- [ ] **3.1 C-FFI / JNI Bindings:**
-  - Bind `snoopar-core` into Kotlin (JNI) and Swift (C-Interop).
-- [ ] **3.2 Trajectory Breadcrumb Rendering:**
-  - Draw 3D spatial points floating in camera space along the user's walked path, colored by RSSI.
-- [ ] **3.3 Holographic Target Halo:**
-  - Render an animated, pulsing volumetric 3D sphere anchored at the estimated target centroid.
-  - Dynamically scale sphere radii to match the $3\sigma$ covariance ellipsoid.
-- [ ] **3.4 Directional Haptic & Audio Geiger:**
-  - Implement audio/haptic pulse frequency modulated by the dot product of the camera gaze vector and target direction.
-
----
-
-## 🛡️ Phase 4: Real-World Vehicle & Field Testing
-> **Goal:** Test against real AirTags and trackers concealed in difficult vehicular environments.
-
-- [ ] **4.1 Automotive Stress Tests:**
-  - Test tags hidden in rear bumper cavities, wheel wells, gloveboxes, and under seats.
-  - Calibrate path-loss parameters ($A$ and $n$) across automotive steel vs plastic bumpers.
-- [ ] **4.2 LiDAR Occlusion Integration (iOS Pro):**
-  - Use ARKit scene depth / mesh anchors so the AR beacon appears occluded behind physical bumper panels rather than rendering on top.
-- [ ] **4.3 "Silent Tag" Verification:**
-  - Verify detection of physical AirTags with disconnected speaker hardware.
+- [x] **1.1 C++20 Shared Core (`core/`):**
+  - Standardized ARCore Y-up metric coordinates ($Y$ is elevation, $(X, Z)$ is the horizontal floor plane).
+  - Closed-form analytical marginalization of reference transmit power $A$ via 1D Gaussian conjugate updating.
+  - Heavy-tailed Student-t likelihood evaluation ($\nu = 3.0$) accommodating 10–20 dB multipath dips.
+  - Real-time torso body-blocking model ($L_{\text{body}}$ based on camera gaze vector).
+  - Deterministic Hierarchical Bayesian Occupancy Voxel Grid (Coarse 800 voxels $\to$ Fine 1,000 voxels).
+  - Trajectory analyzer with horizontal floor-plane collinearity ($2\times 2$ covariance matrix) and vertical elevation span monitoring.
+  - Pure C-ABI (`snoopar_core_c.h`) for zero-overhead cross-platform interop.
+- [x] **1.2 Rigorous Test Suite & Benchmarks:**
+  - Unit test suite (`core/tests/test_engine.cpp`) with 6/6 tests passing.
+  - 30-seed Monte Carlo simulation benchmark (`simulation/benchmark_snoopar.py`) under Rayleigh fading and body blocking (97% of runs within 50 cm, median error 32 cm).
+  - Python `ctypes` wrapper (`core/python/snoopar_core.py`) with automated Windows MinGW runtime resolution.
 
 ---
 
-## 🚀 Phase 5: v1.0 Public Open-Source Release
-> **Goal:** Public release, documentation, and community distribution.
+## Phase 2: Android Native Application
+> **Status: Complete**  
+> **Goal:** Build the native Android AR application integrating the C++ core via JNI, camera background rendering, and interactive UI.
 
-- [ ] F-Droid and Google Play release (Android).
-- [ ] TestFlight and App Store release (iOS).
-- [ ] Complete developer documentation and contribution guides.
-- [ ] Publish pre-recorded synthetic benchmark datasets for research citation.
+- [x] **2.1 Native JNI Integration:**
+  - JNI bindings (`snoopar_jni.cpp`) mapping `SnoopArNativeEngine` to `libsnoopar_core`.
+  - CMake build script configured with multi-level directory resolution to shared root core.
+- [x] **2.2 High-Fidelity ARCore & OpenGL ES Rendering:**
+  - `BackgroundRenderer`: Fullscreen quad sampling `GL_TEXTURE_EXTERNAL_OES` with display geometry transformations.
+  - `BreadcrumbRenderer`: 3D signal history points colored by RSSI strength with synchronized vertex buffer snapshotting.
+  - `VoxelCloudRenderer`: Thermal glowing volumetric probability cloud with additive alpha blending and thread-safe buffer swapping.
+- [x] **2.3 BLE Packet Scanning & Strict Protocol Classification:**
+  - Filter and fingerprint Apple Find My (`0x004c`, type `0x12`, $\ge 25$ bytes).
+  - Filter Samsung SmartThings Find (`0xFD5A` service data).
+  - Filter Google Find My Device Network (`0xFEAA` with frame type `0x40`/`0x41`).
+  - Filter Tile trackers (`0xFEED`/`0xFEEC`/`0x01D3`).
+- [x] **2.4 User Interface & Guidance:**
+  - Jetpack Compose HUD overlay showing search stage, guidance hints, sample counts, and confidence radius.
+  - Suspect tracker discovery sheet with device selection and target lock-on.
+  - Directional Geiger haptic feedback driven by camera-to-target alignment.
+
+---
+
+## Phase 3: Empirical Validation & Vehicle Calibration
+> **Status: In Progress**  
+> **Goal:** Collect empirical vehicle datasets using the Data Logger and calibrate environmental path-loss parameters.
+
+- [ ] **3.1 Vehicle Exterior & Interior Datasets:**
+  - Record datasets for AirTags and SmartTags concealed in vehicle bumpers, wheel wells, and glove compartments.
+  - Measure empirical path-loss exponent $n$ through plastic bumpers vs steel frames.
+- [ ] **3.2 Model Parameter Tuning:**
+  - Refine prior parameters $(\mu_A, \sigma_A, n)$ in `types.h` based on real capture replays.
+  - Verify close-sweep convergence on real hardware in diverse indoor and outdoor settings.
+
+---
+
+## Phase 4: iOS Native Application
+> **Status: Planned**  
+> **Goal:** Implement the native iOS application leveraging ARKit, RealityKit/Metal, and CoreBluetooth.
+
+- [ ] **4.1 Swift C-Interop:**
+  - Integrate `snoopar_core_c.h` into an Xcode project via module map.
+- [ ] **4.2 ARKit VIO Tracking:**
+  - Capture 60 Hz `ARFrame` camera poses and microsecond timestamp synchronization.
+- [ ] **4.3 CoreBluetooth Scanner:**
+  - Background and foreground BLE scanning with manufacturer data extraction.
+- [ ] **4.4 RealityKit / Metal Rendering:**
+  - Render volumetric point clouds and trajectory breadcrumbs in ARKit scene space.
+
+---
+
+## Phase 5: Open-Source Release & Packaging
+> **Status: Planned**  
+> **Goal:** Distribute SnoopAR to the privacy and security community.
+
+- [ ] Publish standalone signed Android APK releases on GitHub.
+- [ ] Submit to F-Droid repository.
+- [ ] Public documentation site with video demonstrations and vehicle search guides.
+- [ ] Publish benchmark datasets and evaluation scripts for academic and privacy research.

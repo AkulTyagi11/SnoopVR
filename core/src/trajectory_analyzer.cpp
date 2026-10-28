@@ -23,41 +23,42 @@ float TrajectoryAnalyzer::get_path_length() const {
 
 float TrajectoryAnalyzer::get_vertical_span() const {
     if (poses_.empty()) return 0.0f;
-    float min_z = poses_[0].z;
-    float max_z = poses_[0].z;
+    // In ARCore, Y is the vertical elevation axis
+    float min_y = poses_[0].y;
+    float max_y = poses_[0].y;
     for (const auto& p : poses_) {
-        min_z = std::min(min_z, p.z);
-        max_z = std::max(max_z, p.z);
+        min_y = std::min(min_y, p.y);
+        max_y = std::max(max_y, p.y);
     }
-    return max_z - min_z;
+    return max_y - min_y;
 }
 
 float TrajectoryAnalyzer::get_planar_aspect_ratio() const {
     if (poses_.size() < 4) return 1.0f;
 
-    // Center the poses
+    // In ARCore, the horizontal floor plane is defined by (X, Z)
     float mean_x = 0.0f;
-    float mean_y = 0.0f;
+    float mean_z = 0.0f;
     for (const auto& p : poses_) {
         mean_x += p.x;
-        mean_y += p.y;
+        mean_z += p.z;
     }
     mean_x /= poses_.size();
-    mean_y /= poses_.size();
+    mean_z /= poses_.size();
 
-    // 2x2 horizontal covariance matrix
-    float cxx = 0.0f, cyy = 0.0f, cxy = 0.0f;
+    // 2x2 horizontal (X, Z) covariance matrix
+    float cxx = 0.0f, czz = 0.0f, cxz = 0.0f;
     for (const auto& p : poses_) {
         float dx = p.x - mean_x;
-        float dy = p.y - mean_y;
+        float dz = p.z - mean_z;
         cxx += dx * dx;
-        cyy += dy * dy;
-        cxy += dx * dy;
+        czz += dz * dz;
+        cxz += dx * dz;
     }
 
     // Eigenvalues of 2x2 matrix: lambda = (tr +- sqrt(tr^2 - 4*det)) / 2
-    float tr = cxx + cyy;
-    float det = cxx * cyy - cxy * cxy;
+    float tr = cxx + czz;
+    float det = cxx * czz - cxz * cxz;
     float disc = std::max(tr * tr - 4.0f * det, 0.0f);
     float l1 = 0.5f * (tr + std::sqrt(disc));
     float l2 = 0.5f * (tr - std::sqrt(disc));

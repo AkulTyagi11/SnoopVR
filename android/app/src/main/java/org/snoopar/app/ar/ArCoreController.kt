@@ -48,15 +48,15 @@ class ArCoreController(private val context: Context) {
         val pose = camera.pose
         val translation = pose.translation // [x, y, z]
 
-        // Forward gaze vector in ARCore camera coordinates
-        val forwardVector = pose.transformedCoordinateSystem[2] // Z axis
-        val gazeX = -forwardVector[0]
-        val gazeY = -forwardVector[1]
-        val gazeZ = -forwardVector[2]
+        // Forward gaze vector in ARCore camera coordinates (camera looks down its local -Z axis)
+        val zAxis = pose.zAxis
+        val gazeX = -zAxis[0]
+        val gazeY = -zAxis[1]
+        val gazeZ = -zAxis[2]
 
-        val nowNs = SystemClock.elapsedRealtimeNanos()
+        val timestampNs = if (frame.timestamp > 0) frame.timestamp else SystemClock.elapsedRealtimeNanos()
         val sample = CameraPoseSample(
-            timestampNs = nowNs,
+            timestampNs = timestampNs,
             x = translation[0], y = translation[1], z = translation[2],
             gazeX = gazeX, gazeY = gazeY, gazeZ = gazeZ
         )
@@ -65,7 +65,7 @@ class ArCoreController(private val context: Context) {
         poseHistory.addLast(sample)
 
         // Prune older than 2 seconds
-        while (poseHistory.isNotEmpty() && (nowNs - poseHistory.first.timestampNs) > maxHistoryNanos) {
+        while (poseHistory.isNotEmpty() && (timestampNs - poseHistory.first.timestampNs) > maxHistoryNanos) {
             poseHistory.pollFirst()
         }
     }

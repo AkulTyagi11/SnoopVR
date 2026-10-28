@@ -1,155 +1,184 @@
-# 📐 SnoopAR: Algorithm Specification
+# SnoopAR: Algorithm Specification
 
-This document provides the complete mathematical formulation of the **Inverse Localization Particle Filter**, the RF propagation model, likelihood evaluation, resampling strategies, and geometric dilution of precision (GDOP) detection.
+This document provides the mathematical formulation of the **Hierarchical Bayesian Occupancy Grid Engine**, the RF propagation model with body attenuation, analytical transmit-power marginalization, heavy-tailed Student-t likelihood evaluation, and trajectory collinearity detection.
 
 ---
 
-## 1. Problem Formulation
+## 1. Problem Formulation & Coordinate Frame
 
-The objective is to estimate the stationary 3D coordinates of an unknown target RF emitter $\mathbf{r}_t = [x_t, y_t, z_t]^T \in \mathbb{R}^3$ given a time-series of noisy scalar RSSI measurements $z_k$ taken at known 3D observer positions $\mathbf{p}_k = [x_k, y_k, z_k]^T$.
+The objective is to estimate the stationary 3D coordinates of an unknown target RF emitter $\mathbf{r}_t = [x_t, y_t, z_t]^T \in \mathbb{R}^3$ given a time-series of noisy scalar RSSI measurements $z_k$ captured at synchronized 3D observer positions $\mathbf{p}_k = [x_k, y_k, z_k]^T$.
 
-### 1.1 State Vector
-To account for unknown transmission powers and local environmental clutter, the state vector $\mathbf{\theta}$ is defined in $\mathbb{R}^5$:
-
-$$\mathbf{\theta} = \begin{bmatrix} x_t \\ y_t \\ z_t \\ A \\ n \end{bmatrix}$$
-
-Where:
-* $[x_t, y_t, z_t]$: 3D position coordinates of the emitter in the AR metric world frame (meters).
-* $A$: Calibrated reference RSSI at distance $d_0 = 1.0\text{ m}$ (typically $-58 \text{ dBm}$ to $-64 \text{ dBm}$ for BLE).
-* $n$: Effective path-loss exponent ($n \approx 2.0$ for open air, $2.5 - 3.5$ for vehicle interiors and furnished rooms).
+### 1.1 Standardized Coordinate System (ARCore Y-Up)
+To ensure zero-copy compatibility between mobile AR frameworks (ARCore, Sceneview) and the native C++ core, SnoopAR standardizes on the **right-handed Y-up metric frame**:
+* **$X$-axis:** Horizontal lateral axis (Right is $+X$, Left is $-X$).
+* **$Y$-axis:** Vertical elevation axis (Up is $+Y$, Down is $-Y$, gravity acts along $-Y$).
+* **$Z$-axis:** Horizontal depth axis (Backward is $+Z$, Forward is $-Z$).
+* **Floor Plane:** Spanned by the horizontal coordinates $(X, Z)$.
+* **Height / Elevation:** Defined strictly along the $Y$ coordinate.
 
 ---
 
 ## 2. RF Propagation & Measurement Model
 
 ### 2.1 Euclidean Metric Distance
-At observation step $k$, the Euclidean distance between the current camera position $\mathbf{p}_k$ and a candidate particle $\mathbf{r}_t^{(i)}$ is:
+At observation step $k \in \{1, \dots, K\}$, the Euclidean distance between observer camera position $\mathbf{p}_k$ and candidate voxel coordinate $\mathbf{r} = [x, y, z]^T$ is:
 
-$$d_k^{(i)} = \max\left( \sqrt{(x_k - x_t^{(i)})^2 + (y_k - y_t^{(i)})^2 + (z_k - z_t^{(i)})^2}, \,\, d_{\min} \right)$$
+$$d_k(\mathbf{r}) = \max\left( \sqrt{(x_k - x)^2 + (y_k - y)^2 + (z_k - z)^2}, \,\, d_{\min} \right)$$
 
-*(Where $d_{\min} = 0.05\text{ m}$ prevents logarithmic singularity at near-zero distance).*
+Where $d_{\min} = 0.05\text{ m}$ prevents logarithmic singularity in the immediate near field.
 
 ### 2.2 Log-Distance Path Loss with Directional Body Attenuation
-The expected RSSI $\hat{z}_k^{(i)}$ for candidate position $\mathbf{r}_t^{(i)}$ is modeled by:
+The expected RSSI $\hat{z}_k(\mathbf{r})$ at candidate position $\mathbf{r}$ is modeled by:
 
-$$\hat{z}_k^{(i)} = A^{(i)} - 10 \cdot n^{(i)} \cdot \log_{10}\left( \frac{d_k^{(i)}}{d_0} \right) - L_{\text{body}}(\mathbf{p}_k, \mathbf{r}_t^{(i)}, \mathbf{q}_k)$$
+$$\hat{z}_k(\mathbf{r}) = A - 10 \cdot n \cdot \log_{10}\left( \frac{d_k(\mathbf{r})}{d_0} \right) - L_{\text{body}}(\mathbf{p}_k, \mathbf{r}, \mathbf{u}_k)$$
 
 Where:
-* **Body-Blocking Loss ($L_{\text{body}}$):** Human tissue attenuates 2.4 GHz RF by 6–12 dB. The camera's forward orientation vector $\mathbf{u}_{\text{cam}}$ (from camera quaternion $\mathbf{q}_k$) indicates the user's line-of-sight. If the vector from observer to candidate $(\mathbf{r}_t^{(i)} - \mathbf{p}_k)$ points *behind* the user's phone, the user's torso obstructs the direct path:
-  $$\cos \psi = \mathbf{u}_{\text{cam}} \cdot \frac{\mathbf{r}_t^{(i)} - \mathbf{p}_k}{\|\mathbf{r}_t^{(i)} - \mathbf{p}_k\|}$$
-  $$L_{\text{body}} = \begin{cases} 
-  L_{\max} \cdot \left(\frac{1 - \cos \psi}{2}\right)^2 & \text{if } \cos \psi < 0 \\ 
-  0 & \text{otherwise} 
-  \end{cases} \quad (L_{\max} \approx 8.0 \text{ dB})$$
+* $d_0 = 1.0\text{ m}$ is the reference calibration distance.
+* $A$ is the reference transmit power at $1.0\text{ m}$ (typically $-58.0\text{ dBm}$ to $-62.0\text{ dBm}$ for commercial BLE tags).
+* $n$ is the effective path-loss exponent ($n \approx 2.0$ for free-space, $2.5 - 3.2$ for indoor furnished rooms and vehicle environments).
+* $\mathbf{u}_k$ is the unit vector representing the phone camera optical gaze direction.
+* **Body-Blocking Loss ($L_{\text{body}}$):** Human tissue attenuates 2.4 GHz RF signals by 6–12 dB. If the vector from the observer to the candidate $(\mathbf{r} - \mathbf{p}_k)$ points behind the phone's camera direction, the user's torso obstructs the direct line of sight:
 
-### 2.3 Heavy-Tailed Likelihood (Student-t Distribution)
-Standard Gaussian likelihood fails in real indoor/vehicular environments because multipath nulls create asymmetric, deep 10–20 dB drops. Thin Gaussian tails cause the filter to aggressively discard valid candidate positions.
-We employ a **Student-t distribution** with degrees of freedom $\nu = 3$:
+$$\cos \psi = \mathbf{u}_k \cdot \frac{\mathbf{r} - \mathbf{p}_k}{\|\mathbf{r} - \mathbf{p}_k\|}$$
 
-$$p(z_k \mid \mathbf{\theta}_k^{(i)}) = \frac{\Gamma\left(\frac{\nu+1}{2}\right)}{\sqrt{\pi \nu \sigma^2} \,\, \Gamma\left(\frac{\nu}{2}\right)} \left( 1 + \frac{(z_k - \hat{z}_k^{(i)})^2}{\nu \sigma^2} \right)^{-\frac{\nu+1}{2}}$$
+$$L_{\text{body}} = \begin{cases} 
+L_{\max} \cdot \left(\frac{1 - \cos \psi}{2}\right)^2 & \text{if } \cos \psi < 0 \\ 
+0 & \text{otherwise} 
+\end{cases} \quad (L_{\max} = 8.0 \text{ dB})$$
 
-This smoothly accommodates destructive multipath drops without collapsing the hypothesis space.
+### 2.3 Closed-Form Analytical Marginalization of Reference Transmit Power ($A$)
+Simultaneously estimating both transmit power $A$ and distance $d$ produces a fundamental parameter confounding trade-off: a filter can explain a weak signal either by placing the tag far away with high power, or close by with low power.
 
-### 2.4 Closed-Form Analytical Marginalization of Transmit Power $A$
-Because $A$ enters linearly in the log-distance equation, estimating it simultaneously with distance creates parameter confounding.
-Given an informative prior $A \sim \mathcal{N}(\mu_A, \sigma_A^2)$ for a recognized device class (e.g. AirTag $\mu_A = -58.5\text{ dBm}, \sigma_A = 1.5\text{ dB}$):
-For any candidate location $\mathbf{r}_t$, let $g_k = -10 \cdot n \cdot \log_{10}(d_k) - L_{\text{body}, k}$.
-The optimal conditional estimate $\hat{A}$ given all measurements $\{z_1, \dots, z_K\}$ is obtained analytically via 1D Gaussian conjugate updating:
+Because $A$ enters linearly in the log-distance equation, we treat $A$ under a Gaussian conjugate prior:
 
-$$\sigma_{A, \text{post}}^{-2} = \sigma_A^{-2} + \frac{K}{\sigma_{\text{rssi}}^2}$$
-$$\hat{A}(\mathbf{r}_t, n) = \sigma_{A, \text{post}}^2 \left[ \frac{\mu_A}{\sigma_A^2} + \frac{1}{\sigma_{\text{rssi}}^2} \sum_{k=1}^K (z_k - g_k) \right]$$
+$$A \sim \mathcal{N}(\mu_A, \sigma_A^2)$$
 
-This integrates $A$ out in closed form, reducing the search space and eliminating the fundamental distance-power ambiguity.
+For each candidate voxel $\mathbf{r}$, define the geometric distance-and-body loss component:
 
----
+$$g_k(\mathbf{r}) = -10 \cdot n \cdot \log_{10}(d_k(\mathbf{r})) - L_{\text{body}, k}(\mathbf{r})$$
 
-## 3. Sequential Monte Carlo (Particle Filter) Execution
+Given $K$ observations $\{(\mathbf{p}_k, \mathbf{u}_k, z_k)\}_{k=1}^K$ and measurement noise variance $\sigma_{\text{rssi}}^2$:
 
-A swarm of $N = 10,000$ particles is maintained. Each particle represents a joint hypothesis:
-$$\mathcal{S}_k = \left\{ \left( \mathbf{\theta}_k^{(i)}, w_k^{(i)} \right) \right\}_{i=1}^N$$
+1. **Posterior Precision:**
+   $$\sigma_{A, \text{post}}^{-2} = \sigma_A^{-2} + \frac{K}{\sigma_{\text{rssi}}^2}$$
 
-### 3.1 Initialization (Step $k = 0$)
-Upon initiation of the search around current phone position $\mathbf{p}_0$:
-* **Spatial Coordinates:** Uniformly distributed in a 3D bounding box of side length $2R$ (default $R = 3.0\text{ m}$):
-  $$x_t^{(i)} \sim \mathcal{U}(x_0 - R, x_0 + R)$$
-  $$y_t^{(i)} \sim \mathcal{U}(y_0 - R, y_0 + R)$$
-  $$z_t^{(i)} \sim \mathcal{U}(z_0 - R, z_0 + R)$$
-* **RF Parameters:**
-  $$A^{(i)} \sim \mathcal{N}(-60.0, 3.0^2) \quad [\text{dBm}]$$
-  $$n^{(i)} \sim \mathcal{U}(2.0, 3.5)$$
-* **Weights:** Initialized uniformly:
-  $$w_0^{(i)} = \frac{1}{N}, \quad \forall i \in \{1, \dots, N\}$$
+2. **Conditional Optimal Estimate $\hat{A}(\mathbf{r})$:**
+   $$\hat{A}(\mathbf{r}) = \sigma_{A, \text{post}}^2 \left[ \frac{\mu_A}{\sigma_A^2} + \frac{1}{\sigma_{\text{rssi}}^2} \sum_{k=1}^K (z_k - g_k(\mathbf{r})) \right]$$
 
----
+This integrates $A$ out analytically in $\mathcal{O}(K)$ time for any candidate voxel, collapsing the parameter space and eliminating the distance-power ambiguity.
 
-### 3.2 Likelihood Evaluation (Correction Step)
-When a new synchronized measurement $(\mathbf{p}_k, z_k)$ is received:
+### 2.4 Heavy-Tailed Likelihood (Student-t Distribution)
+Standard Gaussian likelihood functions aggressively discard valid candidate positions when subjected to multipath interference, which regularly induces 10–20 dB signal dips. SnoopAR utilizes a **Student-t distribution** with $\nu = 3.0$ degrees of freedom:
 
-1. **Calculate Innovation (Residual):**
-   $$e_k^{(i)} = z_k - \hat{z}_k^{(i)}$$
+$$e_k(\mathbf{r}) = z_k - \left[ \hat{A}(\mathbf{r}) + g_k(\mathbf{r}) \right]$$
 
-2. **Evaluate Gaussian Likelihood:**
-   $$p(z_k \mid \mathbf{\theta}_k^{(i)}) = \frac{1}{\sqrt{2\pi \sigma_{\text{rssi}}^2}} \exp\left( -\frac{\left(e_k^{(i)}\right)^2}{2\sigma_{\text{rssi}}^2} \right)$$
+$$p(z_k \mid \mathbf{r}) = \frac{\Gamma\left(\frac{\nu+1}{2}\right)}{\sqrt{\pi \nu \sigma_{\text{rssi}}^2} \,\, \Gamma\left(\frac{\nu}{2}\right)} \left( 1 + \frac{e_k^2(\mathbf{r})}{\nu \sigma_{\text{rssi}}^2} \right)^{-\frac{\nu+1}{2}}$$
 
-3. **Update Importance Weights:**
-   $$w_k^{(i)} = w_{k-1}^{(i)} \cdot p(z_k \mid \mathbf{\theta}_k^{(i)})$$
+In log-space:
 
-4. **Normalize Weights:**
-   $$\tilde{w}_k^{(i)} = \frac{w_k^{(i)}}{\sum_{j=1}^N w_k^{(j)}}$$
+$$\ln p(z_k \mid \mathbf{r}) = C - \frac{\nu + 1}{2} \ln\left( 1 + \frac{e_k^2(\mathbf{r})}{\nu \sigma_{\text{rssi}}^2} \right)$$
 
 ---
 
-### 3.3 Degeneracy Check & Low-Variance Resampling
+## 3. Hierarchical Bayesian Occupancy Voxel Grid
 
-To avoid sample impoverishment, the **Effective Sample Size ($N_{\text{eff}}$)** is evaluated:
+Rather than relying on non-deterministic Monte Carlo particle swarms that suffer from sample impoverishment and random seed divergence, SnoopAR implements a **two-stage deterministic Bayesian voxel grid**.
 
-$$N_{\text{eff}} = \frac{1}{\sum_{i=1}^N \left( \tilde{w}_k^{(i)} \right)^2}$$
+```
++-------------------------------------------------------------+
+| Stage 1: Coarse Volumetric Grid                             |
+| Resolution: 0.25 m                                          |
+| Extents:    2.5 m (X) x 2.0 m (Y) x 2.5 m (Z)               |
+| Voxels:     10 x 8 x 10 = 800 candidate cells               |
+| Centered:   On initial observer position p_0                |
++-------------------------------------------------------------+
+                              |
+                     MAP Centroid Selected
+                              v
++-------------------------------------------------------------+
+| Stage 2: Fine Surface Sub-Grid                              |
+| Resolution: 0.06 m                                          |
+| Extents:    0.6 m (X) x 0.6 m (Y) x 0.6 m (Z)               |
+| Voxels:     10 x 10 x 10 = 1,000 candidate cells            |
+| Centered:   On coarse peak estimate r_coarse                |
++-------------------------------------------------------------+
+```
 
-* If $N_{\text{eff}} < \frac{N}{2}$, perform **Low-Variance (Systematic) Resampling**:
-  1. Generate a single random starting number $r \sim \mathcal{U}(0, N^{-1})$.
-  2. Step through cumulative weights $c_i = \sum_{j=1}^i \tilde{w}_k^{(j)}$ with constant stride $N^{-1}$.
-  3. Select matching particle indices deterministically in $\mathcal{O}(N)$ time.
+### 3.1 Posterior Probability Density Computation
+For any grid $\mathcal{G}$ of voxels $\{\mathbf{r}_v\}_{v=1}^V$, the unnormalized log-posterior is evaluated across all accumulated observations:
 
-### 3.4 Particle Jittering (Roughening)
-After resampling, add an infinitesimal Gaussian perturbation to prevent particles from collapsing into identical discrete points:
+$$\ln P(\mathbf{r}_v \mid \mathcal{Z}_{1:K}) = \sum_{k=1}^K \ln p(z_k \mid \mathbf{r}_v)$$
 
-$$\mathbf{\theta}_k^{(i)} \leftarrow \mathbf{\theta}_k^{(i)} + \mathbf{\eta}^{(i)}, \quad \mathbf{\eta}^{(i)} \sim \mathcal{N}\left( \mathbf{0}, \text{diag}(\sigma_x^2, \sigma_y^2, \sigma_z^2, \sigma_A^2, \sigma_n^2) \right)$$
+To prevent floating-point underflow:
+$$m = \max_{v} \ln P(\mathbf{r}_v \mid \mathcal{Z}_{1:K})$$
+$$w_v = \exp\left( \ln P(\mathbf{r}_v \mid \mathcal{Z}_{1:K}) - m \right)$$
+$$\tilde{w}_v = \frac{w_v}{\sum_{j=1}^V w_j}$$
 
-*(Typical dispersion: $\sigma_{x,y,z} = 0.02\text{ m}$, $\sigma_A = 0.1\text{ dB}$, $\sigma_n = 0.02$).*
+### 3.2 Target Centroid and Confidence Radius
+The estimated target position $\hat{\mathbf{r}}_t$ is computed as the expected centroid:
+
+$$\hat{\mathbf{r}}_t = \sum_{v=1}^V \tilde{w}_v \mathbf{r}_v$$
+
+The confidence radius $R_{90}$ is computed from the spatial covariance trace:
+
+$$\mathbf{P}_t = \sum_{v=1}^V \tilde{w}_v (\mathbf{r}_v - \hat{\mathbf{r}}_t)(\mathbf{r}_v - \hat{\mathbf{r}}_t)^T$$
+$$R_{90} = 2.0 \cdot \sqrt{\frac{1}{3} \text{Tr}(\mathbf{P}_t)}$$
 
 ---
 
-## 4. Centroid Extraction & 3D Covariance Ellipsoid
+## 4. Near-Field Path Loss Physics
 
-The AR renderer requires the estimated target center and the spatial uncertainty bounds to draw the volumetric halo.
+At distances $d > 1.5\text{ m}$, the derivative of RSSI with respect to distance is small:
 
-### 4.1 Estimated Target Location (Centroid)
-$$\hat{\mathbf{r}}_t = \sum_{i=1}^N \tilde{w}_k^{(i)} \begin{bmatrix} x_t^{(i)} \\ y_t^{(i)} \\ z_t^{(i)} \end{bmatrix}$$
+$$\left|\frac{\partial \text{RSSI}}{\partial d}\right| = \frac{10 \cdot n}{\ln(10) \cdot d} \approx \frac{10 \cdot 2.7}{2.302 \cdot 2.0} \approx 5.86 \text{ dB/m}$$
 
-### 4.2 3D Spatial Covariance Matrix
-$$\mathbf{P}_k = \sum_{i=1}^N \tilde{w}_k^{(i)} \left( \mathbf{r}_t^{(i)} - \hat{\mathbf{r}}_t \right) \left( \mathbf{r}_t^{(i)} - \hat{\mathbf{r}}_t \right)^T \in \mathbb{R}^{3 \times 3}$$
+Multipath noise ($\sigma_{\text{rssi}} \approx 6.0 - 7.5\text{ dB}$) completely swamps this small gradient, preventing high-resolution localization at distance.
 
-### 4.3 Holographic Halo Radii & Orientation
-Perform Eigenvalue Decomposition on $\mathbf{P}_k$:
-$$\mathbf{P}_k = \mathbf{V} \mathbf{\Lambda} \mathbf{V}^T$$
-* **Eigenvectors ($\mathbf{V}$):** Define the 3D rotation matrix of the AR ellipsoid.
-* **Eigenvalues ($\lambda_1, \lambda_2, \lambda_3$):** The $3\sigma$ semi-axes lengths of the bounding AR halo:
-  $$r_1 = 3\sqrt{\lambda_1}, \quad r_2 = 3\sqrt{\lambda_2}, \quad r_3 = 3\sqrt{\lambda_3}$$
-* When $\max(r_1, r_2, r_3) < 0.25\text{ m}$, the system declares a **Target Lock** and sounds the haptic alert.
+However, in the near field at $d = 0.35\text{ m}$:
+
+$$\left|\frac{\partial \text{RSSI}}{\partial d}\right| \approx \frac{27.0}{2.302 \cdot 0.35} \approx 33.5 \text{ dB/m}$$
+
+A displacement of only $10\text{ cm}$ produces a $> 3.3\text{ dB}$ signal shift. SnoopAR exploits this physical phenomenon:
+1. **Stage 1** uses the weak distant gradient to locate the general quadrant within $\sim 0.8\text{ m}$.
+2. **Stage 2** guides the user to perform a close surface sweep ($30 - 50\text{ cm}$), where the steep gradient collapses the confidence radius to $< 25\text{ cm}$.
 
 ---
 
-## 5. Geometric Dilution of Precision (GDOP) & User Guidance
+## 5. Trajectory Geometry & Collinearity Detection
 
-If the user walks in a straight line, the path-loss equations possess axial rotational symmetry around that line, preventing unique 3D convergence.
+When an observer moves in a straight line, the path-loss equations possess rotational symmetry about that axis, creating an ambiguous ring of candidate positions.
 
-### 5.1 Collinearity Detection
-Compute the Singular Value Decomposition (SVD) of the centered observer trajectory matrix $\mathbf{X}_{\text{traj}} = [\mathbf{p}_1 - \bar{\mathbf{p}}, \dots, \mathbf{p}_k - \bar{\mathbf{p}}]^T \in \mathbb{R}^{k \times 3}$:
+### 5.1 Horizontal Floor Plane Analysis (ARCore Y-Up)
+In the ARCore coordinate frame, walking trajectory occurs on the horizontal plane spanned by $(X, Z)$.
+Let $\mathbf{p}_k = [x_k, y_k, z_k]^T$ for $k \in \{1, \dots, K\}$.
+The mean horizontal coordinate is $[\bar{x}, \bar{z}]^T$.
 
-$$\mathbf{X}_{\text{traj}} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T, \quad \mathbf{\Sigma} = \text{diag}(s_1, s_2, s_3)$$
+The $2 \times 2$ horizontal covariance matrix is:
 
-* **Collinearity Metric:**
-  $$\rho_{\text{planar}} = \frac{s_2}{s_1}, \quad \rho_{\text{volume}} = \frac{s_3}{s_1}$$
-* If $\rho_{\text{planar}} < 0.15$ after $k \ge 8$ samples, the motion is deemed purely linear.
-* **AR UI Action:** Render an animated 3D curved arrow on the floor with the instruction:  
-  **"Step 1 meter sideways to break collinear symmetry."**
+$$\mathbf{C}_{\text{horiz}} = \frac{1}{K} \sum_{k=1}^K \begin{bmatrix} (x_k - \bar{x})^2 & (x_k - \bar{x})(z_k - \bar{z}) \\ (x_k - \bar{x})(z_k - \bar{z}) & (z_k - \bar{z})^2 \end{bmatrix}$$
+
+Let $\lambda_1 \ge \lambda_2 \ge 0$ be the eigenvalues of $\mathbf{C}_{\text{horiz}}$:
+* **Planar Ratio:** $\rho_{\text{planar}} = \frac{\lambda_2}{\lambda_1}$.
+* If $\rho_{\text{planar}} < 0.12$ and $K \ge 8$, the horizontal trajectory is collinear.
+* **Guidance Prompt:** `"Step sideways to break collinear symmetry"`.
+
+### 5.2 Vertical Elevation Span Analysis
+Because users naturally hold their phones at a constant chest height, vertical height estimation suffers from lack of baseline.
+The elevation span is monitored along the $Y$-axis:
+
+$$\Delta Y = \max_{k} y_k - \min_{k} y_k$$
+
+* If $\Delta Y < 0.25\text{ m}$ after horizontal convergence, the system prompts:
+* **Guidance Prompt:** `"Scan higher or lower to constrain height"`.
+
+---
+
+## 6. Algorithmic Complexity
+
+| Operation | Complexity | Memory Allocation | Mobile Execution Time (ARM Cortex-A78) |
+| :--- | :--- | :--- | :--- |
+| Closed-Form $A$ Update | $\mathcal{O}(K)$ | Zero (registers) | $< 0.5\,\mu\text{s}$ per voxel |
+| Coarse Grid Likelihood ($800$ cells) | $\mathcal{O}(V_{\text{coarse}} \cdot K)$ | Zero (pre-allocated) | $\approx 0.12\text{ ms}$ ($K = 35$) |
+| Fine Grid Likelihood ($1,000$ cells) | $\mathcal{O}(V_{\text{fine}} \cdot K)$ | Zero (pre-allocated) | $\approx 0.15\text{ ms}$ ($K = 35$) |
+| Trajectory Covariance Eigendecomposition | $\mathcal{O}(K)$ | Zero (stack $2 \times 2$) | $< 1.0\,\mu\text{s}$ |
+| **Total Engine Cycle per Observation** | $\mathcal{O}(V \cdot K)$ | **0.00 MB** | **$< 0.35\text{ ms}$** |

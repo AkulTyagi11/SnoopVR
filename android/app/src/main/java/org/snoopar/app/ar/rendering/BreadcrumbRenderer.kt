@@ -86,9 +86,12 @@ class BreadcrumbRenderer {
     }
 
     fun draw(mvpMatrix: FloatArray) {
-        val buffer = vertexBuffer ?: return
-        val count = breadcrumbs.size
-        if (count == 0) return
+        val (buffer, count) = synchronized(breadcrumbs) {
+            val buf = vertexBuffer ?: return
+            val cnt = breadcrumbs.size
+            if (cnt == 0) return
+            Pair(buf, cnt)
+        }
 
         GLES20.glUseProgram(program)
         GLES20.glEnable(GLES20.GL_BLEND)

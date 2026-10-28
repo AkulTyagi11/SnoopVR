@@ -1,9 +1,17 @@
 package org.snoopar.app.ui
 
 import android.opengl.GLSurfaceView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import org.snoopar.app.ble.DiscoveredTracker
@@ -27,6 +35,8 @@ fun SnoopArScreen(
     onStartCloseSweep: () -> Unit,
     onReset: () -> Unit
 ) {
+    var showTargetSelector by remember { mutableStateOf(false) }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // AR OpenGL Surface
         AndroidView(
@@ -42,9 +52,29 @@ fun SnoopArScreen(
             latestRssi = latestRssi,
             targetName = targetName,
             confidenceRadius = confidenceRadius,
+            trackerCount = trackers.size,
+            onOpenTargetSelector = { showTargetSelector = true },
             onStartCloseSweep = onStartCloseSweep,
             onReset = onReset,
             modifier = Modifier.fillMaxSize()
         )
+
+        // Target Selector Bottom Sheet
+        AnimatedVisibility(
+            visible = showTargetSelector,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            TargetSelectorSheet(
+                trackers = trackers,
+                selectedAddress = selectedAddress,
+                onSelectTracker = { tracker ->
+                    onSelectTracker(tracker)
+                    showTargetSelector = false
+                },
+                onClose = { showTargetSelector = false }
+            )
+        }
     }
 }

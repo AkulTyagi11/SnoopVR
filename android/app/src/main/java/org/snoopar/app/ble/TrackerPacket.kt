@@ -11,7 +11,7 @@ enum class TrackerFamily(val displayName: String, val trackerTypeId: Int) {
 data class DiscoveredTracker(
     val deviceAddress: String,
     val family: TrackerFamily,
-    var lastRssi: Int,
-    var packetCount: Int = 1,
-    var lastSeenTimestampNs: Long = System.nanoTime()
+    val lastRssi: Int,
+    val packetCount: Int = 1,
+    val lastSeenTimestampNs: Long = 0L
 )

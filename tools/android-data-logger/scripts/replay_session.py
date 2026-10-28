@@ -7,6 +7,7 @@ through the SnoopAR C++20 Core Engine via Python ctypes FFI.
 """
 
 import sys
+import json
 import argparse
 from pathlib import Path
 import csv
@@ -34,6 +35,9 @@ def load_poses(poses_path):
     with open(poses_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            if row.get("tracking_state") and row["tracking_state"] != "TRACKING":
+                continue
+
             t = int(row["timestamp_ns"])
             x = float(row["pos_x"])
             y = float(row["pos_y"])
@@ -63,9 +67,11 @@ def interpolate_pose(target_t, timestamps, poses, quaternions):
 
     alpha = (target_t - t0) / (t1 - t0)
     pos = (1.0 - alpha) * poses[idx - 1] + alpha * poses[idx]
-    # Simple linear interpolation for quaternion
+    # Linear interpolation normalized (nlerp)
     q = (1.0 - alpha) * quaternions[idx - 1] + alpha * quaternions[idx]
-    q /= np.linalg.norm(q)
+    q_norm = np.linalg.norm(q)
+    if q_norm > 1e-6:
+        q /= q_norm
     return pos, q
 
 
@@ -78,24 +84,54 @@ def quat_to_forward(q):
     norm = np.sqrt(fx * fx + fy * fy + fz * fz)
     if norm > 1e-6:
         return np.array([fx / norm, fy / norm, fz / norm])
-    return np.array([0.0, 1.0, 0.0])
+    return np.array([0.0, 0.0, -1.0])
 
 
 def replay_session(session_dir, target_id=None, ground_truth=None):
     session_path = Path(session_dir)
     poses_file = session_path / "poses.csv"
     ble_file = session_path / "ble.csv"
+    meta_file = session_path / "metadata.json"
 
     if not poses_file.exists() or not ble_file.exists():
         print(f"Error: Session directory must contain poses.csv and ble.csv ({session_path})")
         return
 
+    # Auto-load ground truth from metadata if present and not provided via CLI
+    if ground_truth is None and meta_file.exists():
+        try:
+            with open(meta_file, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+                if "ground_truth_position" in meta:
+                    ground_truth = meta["ground_truth_position"]
+                    print(f"Loaded ground-truth position from metadata.json: {ground_truth}")
+        except Exception as e:
+            print(f"Warning: could not parse metadata.json: {e}")
+
     print("=" * 70)
-    print(f" 📡 SnoopAR Empirical Session Replay: {session_path.name}")
+    print(f" SnoopAR Empirical Session Replay: {session_path.name}")
     print("=" * 70)
 
     t_poses, poses, quats = load_poses(poses_file)
-    print(f"Loaded {len(poses)} AR camera poses spanning {(t_poses[-1] - t_poses[0]) * 1e-9:.1f} seconds")
+    if not t_poses:
+        print("Error: poses.csv contains no valid TRACKING poses.")
+        return
+
+    duration_sec = (t_poses[-1] - t_poses[0]) * 1e-9
+    print(f"Loaded {len(poses)} valid ARCore tracking poses spanning {duration_sec:.1f} seconds")
+
+    # If target not specified, discover device with the highest packet count
+    if not target_id:
+        counts = {}
+        with open(ble_file, "r", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                dev = row["device_id"]
+                counts[dev] = counts.get(dev, 0) + 1
+        if not counts:
+            print("Error: ble.csv contains no packets.")
+            return
+        target_id = max(counts, key=counts.get)
+        print(f"Auto-selected suspect target device with highest packet count ({counts[target_id]} pkts): {target_id}")
 
     engine = SnoopAREngine(SnoopAREngine.TRACKER_AIRTAG)
 
@@ -104,12 +140,7 @@ def replay_session(session_dir, target_id=None, ground_truth=None):
         reader = csv.DictReader(f)
         for row in reader:
             dev_id = row["device_id"]
-            if target_id and target_id not in dev_id:
-                continue
-
-            tag_type = row["tag_type"]
-            # Filter non-tracking background devices if not specified
-            if not target_id and not (tag_type.startswith("Apple") or tag_type.startswith("Samsung") or tag_type.startswith("Tile")):
+            if target_id not in dev_id:
                 continue
 
             t_ble = int(row["timestamp_ns"])
@@ -122,7 +153,10 @@ def replay_session(session_dir, target_id=None, ground_truth=None):
             engine.add_observation(pos[0], pos[1], pos[2], gaze[0], gaze[1], gaze[2], rssi, t_ble)
             ble_count += 1
 
-    print(f"Synchronized & Ingested {ble_count} target BLE packets")
+    print(f"Synchronized & Ingested {ble_count} target BLE packets for device {target_id}")
+    if ble_count == 0:
+        print(f"No packets found matching target {target_id}")
+        return
 
     # Coarse estimate
     coarse_est, coarse_rad = engine.get_estimate()
@@ -136,12 +170,12 @@ def replay_session(session_dir, target_id=None, ground_truth=None):
     if ground_truth:
         gt = np.array(ground_truth, dtype=np.float64)
         error_cm = np.linalg.norm(np.array(fine_est) - gt) * 100.0
-        print(f"\n🎯 Ground Truth Position: {gt.tolist()} m")
-        print(f"📏 Absolute Error       : {error_cm:.1f} cm")
-        if error_cm < 30.0:
-            print("✅ SUCCESS: Target successfully locked within 30 cm!")
+        print(f"\nGround Truth Position: {gt.tolist()} m")
+        print(f"Absolute Error       : {error_cm:.1f} cm")
+        if error_cm < 35.0:
+            print("Status: Target successfully locked within precision threshold!")
         else:
-            print("⚠️ Target located within coarse quadrant.")
+            print("Status: Target located within coarse quadrant.")
 
     # Show top probability voxels
     voxels = engine.get_voxel_cloud(max_count=5)

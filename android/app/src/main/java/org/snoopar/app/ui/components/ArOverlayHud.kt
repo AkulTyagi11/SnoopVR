@@ -1,9 +1,11 @@
 package org.snoopar.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -28,6 +30,8 @@ fun ArOverlayHud(
     latestRssi: Float,
     targetName: String,
     confidenceRadius: Float?,
+    trackerCount: Int,
+    onOpenTargetSelector: () -> Unit,
     onStartCloseSweep: () -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier
@@ -108,12 +112,28 @@ fun ArOverlayHud(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenTargetSelector() },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(targetName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(targetName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    color = Color(0x3364B5F6),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text(
+                                        text = "$trackerCount found",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF64B5F6),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                             Text(
                                 "Samples: $observationCount | Rad: ${confidenceRadius?.let { "%.1f cm".format(it * 100) } ?: "--"}",
                                 fontSize = 12.sp,
@@ -138,6 +158,15 @@ fun ArOverlayHud(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = onOpenTargetSelector,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF263238))
+                        ) {
+                            Icon(Icons.Default.Bluetooth, contentDescription = null, tint = Color(0xFF64B5F6), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Trackers", fontSize = 13.sp)
+                        }
+
                         if (searchState == AppSearchState.READY_FOR_CLOSE_SWEEP || searchState == AppSearchState.COARSE_SEARCH) {
                             Button(
                                 onClick = onStartCloseSweep,

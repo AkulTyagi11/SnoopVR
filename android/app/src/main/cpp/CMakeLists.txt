@@ -4,7 +4,7 @@ project(snoopar_jni LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../core)
+set(CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../core)
 
 # Shared Core C++ source files
 set(CORE_SOURCES

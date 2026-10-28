@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,6 +25,7 @@ fun TargetSelectorSheet(
     trackers: List<DiscoveredTracker>,
     selectedAddress: String?,
     onSelectTracker: (DiscoveredTracker) -> Unit,
+    onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -32,10 +34,19 @@ fun TargetSelectorSheet(
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.BluetoothSearching, contentDescription = null, tint = Color(0xFF64B5F6))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Discovered Suspect Trackers", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.BluetoothSearching, contentDescription = null, tint = Color(0xFF64B5F6))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Suspect Trackers (${trackers.size})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+                IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.LightGray, modifier = Modifier.size(18.dp))
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
