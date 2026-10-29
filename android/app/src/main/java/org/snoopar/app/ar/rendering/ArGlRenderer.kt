@@ -6,6 +6,7 @@ import android.opengl.Matrix
 import android.view.Surface
 import com.google.ar.core.TrackingState
 import org.snoopar.app.ar.ArCoreController
+import org.snoopar.app.engine.AppSearchState
 import org.snoopar.app.engine.VoxelPoint
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
