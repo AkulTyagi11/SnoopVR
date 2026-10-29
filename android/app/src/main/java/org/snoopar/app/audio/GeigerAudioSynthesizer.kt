@@ -72,7 +72,9 @@ class GeigerAudioSynthesizer {
             }
 
             audioTrack?.play()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("GeigerAudio", "Failed to start AudioTrack", e)
+        }
     }
 
     fun setMuted(muted: Boolean) {
@@ -105,7 +107,9 @@ class GeigerAudioSynthesizer {
     private fun triggerClick() {
         try {
             audioTrack?.write(clickBuffer, 0, clickSampleCount)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            // Buffer write exception during audio release
+        }
     }
 
     fun release() {
@@ -113,6 +117,8 @@ class GeigerAudioSynthesizer {
             audioTrack?.stop()
             audioTrack?.release()
             audioTrack = null
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("GeigerAudio", "Error releasing AudioTrack", e)
+        }
     }
 }

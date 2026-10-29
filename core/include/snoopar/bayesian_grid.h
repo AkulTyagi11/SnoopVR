@@ -32,6 +32,8 @@ public:
     void clear_surface_plane();
     bool has_surface_plane() const { return has_plane_constraint_; }
 
+    bool is_peak_on_boundary() const;
+
     size_t get_voxel_count() const { return grid_points_.size(); }
     float get_resolution() const { return resolution_; }
     Vec3 get_center() const { return center_; }

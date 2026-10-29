@@ -160,6 +160,26 @@ bool BayesianGrid::get_estimate(Vec3& out_position, float& out_confidence_radius
     return true;
 }
 
+bool BayesianGrid::is_peak_on_boundary() const {
+    if (grid_points_.empty() || log_likelihoods_.empty()) {
+        return false;
+    }
+    auto max_it = std::max_element(log_likelihoods_.begin(), log_likelihoods_.end());
+    size_t peak_idx = std::distance(log_likelihoods_.begin(), max_it);
+    const Vec3& p = grid_points_[peak_idx];
+
+    float half_x = span_.x * 0.5f;
+    float half_y = span_.y * 0.5f;
+    float half_z = span_.z * 0.5f;
+    float tol = resolution_ * 1.05f;
+
+    if (std::abs(p.x - (center_.x - half_x)) <= tol || std::abs(p.x - (center_.x + half_x)) <= tol) return true;
+    if (std::abs(p.y - (center_.y - half_y)) <= tol || std::abs(p.y - (center_.y + half_y)) <= tol) return true;
+    if (std::abs(p.z - (center_.z - half_z)) <= tol || std::abs(p.z - (center_.z + half_z)) <= tol) return true;
+
+    return false;
+}
+
 void BayesianGrid::get_voxel_cloud(std::vector<Voxel>& out_voxels, size_t max_count) const {
     out_voxels.clear();
     if (grid_points_.empty() || log_likelihoods_.empty()) {

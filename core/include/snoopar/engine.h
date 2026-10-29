@@ -4,6 +4,7 @@
 #include "snoopar/bayesian_grid.h"
 #include "snoopar/trajectory_analyzer.h"
 #include <memory>
+#include <mutex>
 #include <vector>
 
 namespace snoopar {
@@ -44,6 +45,7 @@ public:
     size_t get_observation_count() const { return observations_.size(); }
 
 private:
+    mutable std::recursive_mutex mutex_;
     TrackerProfile profile_;
     SearchState state_{SearchState::CoarseSearch};
 

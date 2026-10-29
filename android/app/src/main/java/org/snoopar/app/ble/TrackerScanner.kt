@@ -67,7 +67,8 @@ class TrackerScanner(
             scanner.startScan(null, settings, scanCallback)
             isScanning = true
             lastScanStartTimeMs = now
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.e("TrackerScanner", "Failed to start BLE scan", e)
             isScanning = false
         }
     }
@@ -82,7 +83,9 @@ class TrackerScanner(
         if (scanner != null) {
             try {
                 scanner.stopScan(scanCallback)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("TrackerScanner", "Error stopping BLE scan", e)
+            }
         }
         isScanning = false
     }

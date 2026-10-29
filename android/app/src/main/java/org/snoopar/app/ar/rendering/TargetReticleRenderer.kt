@@ -252,7 +252,9 @@ class TargetReticleRenderer {
             GLES20.glDisableVertexAttribArray(positionHandle)
             GLES20.glEnable(GLES20.GL_DEPTH_TEST)
             GLES20.glDisable(GLES20.GL_BLEND)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("TargetReticleRenderer", "Reticle draw error caught", e)
+        }
     }
 
     private fun createProgram(vCode: String, fCode: String): Int {

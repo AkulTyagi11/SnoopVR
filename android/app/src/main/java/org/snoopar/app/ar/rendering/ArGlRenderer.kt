@@ -109,8 +109,8 @@ class ArGlRenderer(
 
             // 6. Draw 3D Bold Thermal Target Reticle & Outline Box
             targetReticleRenderer.draw(mvpMatrix)
-        } catch (_: Exception) {
-            // Protect GL thread from any uncaught rendering errors
+        } catch (e: Exception) {
+            android.util.Log.w("ArGlRenderer", "GL draw error caught", e)
         }
     }
 

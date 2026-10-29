@@ -24,8 +24,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.ar.core.ArCoreApk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
 import org.snoopar.app.ar.ArCoreController
 import org.snoopar.app.ar.rendering.ArGlRenderer
 import org.snoopar.app.ble.DiscoveredTracker
@@ -40,6 +42,9 @@ import org.snoopar.app.ui.SnoopArScreen
 import kotlin.math.sqrt
 
 class MainActivity : ComponentActivity() {
+
+    // Serialized Engine Dispatcher prevents race conditions and packet pile-up
+    private val engineDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
 
     // Multi-Target Parallel Tracking Engines (keyed by Bluetooth device address)
     private val engineMap = mutableMapOf<String, SnoopArNativeEngine>()
@@ -234,7 +239,7 @@ class MainActivity : ComponentActivity() {
         // Ingest into target's dedicated engine in parallel
         val targetEngine = getOrCreateEngine(address, trackerType)
 
-        lifecycleScope.launch(Dispatchers.Default) {
+        lifecycleScope.launch(engineDispatcher) {
             targetEngine.addObservation(
                 pose.x, pose.y, pose.z,
                 pose.gazeX, pose.gazeY, pose.gazeZ,
@@ -440,5 +445,6 @@ class MainActivity : ComponentActivity() {
             engineMap.values.forEach { it.close() }
             engineMap.clear()
         }
+        engineDispatcher.close()
     }
 }

@@ -45,7 +45,8 @@ class ArCoreController(private val context: Context) {
             arSession.configure(config)
             session = arSession
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.e("ArCoreController", "Failed to initialize ARCore session", e)
             false
         }
     }
@@ -143,21 +144,35 @@ class ArCoreController(private val context: Context) {
                     nearest = DetectedPlane(px, py, pz, nx, ny, nz, dist)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("ArCoreController", "Error querying nearest plane", e)
+        }
 
         return nearest
     }
 
     fun resume() {
-        try { session?.resume() } catch (_: Exception) {}
+        try {
+            session?.resume()
+        } catch (e: Exception) {
+            android.util.Log.w("ArCoreController", "Failed to resume ARCore session", e)
+        }
     }
 
     fun pause() {
-        try { session?.pause() } catch (_: Exception) {}
+        try {
+            session?.pause()
+        } catch (e: Exception) {
+            android.util.Log.w("ArCoreController", "Failed to pause ARCore session", e)
+        }
     }
 
     fun destroy() {
-        try { session?.close() } catch (_: Exception) {}
+        try {
+            session?.close()
+        } catch (e: Exception) {
+            android.util.Log.w("ArCoreController", "Failed to close ARCore session", e)
+        }
         session = null
         poseHistory.clear()
     }

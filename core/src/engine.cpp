@@ -11,6 +11,7 @@ Engine::Engine(TrackerType type)
 }
 
 void Engine::reset() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     state_ = SearchState::CoarseSearch;
     observations_.clear();
     coarse_grid_.reset(Vec3(0.0f, 0.0f, 0.0f), Vec3(4.0f, 1.8f, 4.0f), 0.15f);
@@ -22,6 +23,7 @@ void Engine::reset() {
 }
 
 void Engine::set_tracker_type(TrackerType type) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     profile_ = snoopar::get_tracker_profile(type);
     if (!observations_.empty()) {
         coarse_grid_.recompute_all(observations_, profile_);
@@ -32,14 +34,17 @@ void Engine::set_tracker_type(TrackerType type) {
 }
 
 void Engine::add_observation(const Vec3& observer_pos, const Vec3& camera_gaze, float rssi, uint64_t timestamp_ns) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     BleObservation obs{timestamp_ns, observer_pos, camera_gaze.normalized(), rssi};
     observations_.push_back(obs);
     trajectory_analyzer_.add_pose(observer_pos);
 
     // If this is the first observation, re-center the coarse grid forward along the user's initial gaze
+    // Biased vertically downwards to ensure coverage of bumpers, floorboards, and low furniture
     if (observations_.size() == 1) {
         Vec3 start_center = observer_pos + camera_gaze.normalized() * 0.8f;
-        coarse_grid_.reset(start_center, Vec3(5.0f, 2.0f, 5.0f), 0.18f);
+        start_center.y -= 0.35f;
+        coarse_grid_.reset(start_center, Vec3(5.5f, 2.6f, 5.5f), 0.18f);
         if (has_plane_constraint_) {
             coarse_grid_.set_surface_plane(plane_point_, plane_normal_, plane_sigma_);
         }
@@ -55,22 +60,24 @@ void Engine::add_observation(const Vec3& observer_pos, const Vec3& camera_gaze, 
     Vec3 est;
     float rad = 5.0f;
     if (get_estimate(est, rad)) {
-        if (state_ == SearchState::CoarseSearch && rad < 1.0f && observations_.size() >= 12) {
+        bool peak_on_edge = (fine_grid_ ? fine_grid_->is_peak_on_boundary() : coarse_grid_.is_peak_on_boundary());
+        if (state_ == SearchState::CoarseSearch && rad < 1.0f && observations_.size() >= 12 && !peak_on_edge) {
             state_ = SearchState::ReadyForCloseSweep;
-        } else if (state_ == SearchState::CloseSweepActive && rad <= 0.35f) {
+        } else if (state_ == SearchState::CloseSweepActive && rad <= 0.35f && !peak_on_edge) {
             state_ = SearchState::TargetLocked;
         }
     }
 }
 
 void Engine::start_close_sweep() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     Vec3 coarse_pos;
     float rad = 1.0f;
     if (coarse_grid_.get_estimate(coarse_pos, rad)) {
         // Instantiate ultra-high-resolution fine grid (4 cm voxels) around the coarse quadrant
         // Adaptively size span to coarse uncertainty to prevent clipping true target
-        float span_xz = std::max(1.2f, std::min(rad * 1.0f, 1.8f));
-        float span_y = std::max(0.6f, std::min(rad * 0.7f, 1.2f));
+        float span_xz = std::max(1.4f, std::min(rad * 1.2f, 2.2f));
+        float span_y = std::max(0.8f, std::min(rad * 0.8f, 1.4f));
         fine_grid_ = std::make_unique<BayesianGrid>(coarse_pos, Vec3(span_xz, span_y, span_xz), 0.04f);
         if (has_plane_constraint_) {
             fine_grid_->set_surface_plane(plane_point_, plane_normal_, plane_sigma_);
@@ -81,6 +88,7 @@ void Engine::start_close_sweep() {
 }
 
 bool Engine::get_estimate(Vec3& out_position, float& out_confidence_radius) const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (fine_grid_) {
         return fine_grid_->get_estimate(out_position, out_confidence_radius);
     }
@@ -88,6 +96,7 @@ bool Engine::get_estimate(Vec3& out_position, float& out_confidence_radius) cons
 }
 
 void Engine::get_voxel_cloud(std::vector<Voxel>& out_voxels, size_t max_count) const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (fine_grid_) {
         fine_grid_->get_voxel_cloud(out_voxels, max_count);
     } else {
@@ -102,6 +111,7 @@ bool Engine::get_bearing_to_target(
     float& out_elevation_deg,
     float& out_distance_m
 ) const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     Vec3 est;
     float rad = 0.0f;
     if (!get_estimate(est, rad)) {
@@ -130,6 +140,7 @@ bool Engine::get_bearing_to_target(
 }
 
 GuidanceHint Engine::get_guidance_hint() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     Vec3 est;
     float rad = 5.0f;
     get_estimate(est, rad);
@@ -137,6 +148,7 @@ GuidanceHint Engine::get_guidance_hint() const {
 }
 
 void Engine::set_surface_plane(const Vec3& plane_point, const Vec3& plane_normal, float sigma_meters) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     has_plane_constraint_ = true;
     plane_point_ = plane_point;
     plane_normal_ = plane_normal.normalized();
@@ -155,6 +167,7 @@ void Engine::set_surface_plane(const Vec3& plane_point, const Vec3& plane_normal
 }
 
 void Engine::clear_surface_plane() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     has_plane_constraint_ = false;
     coarse_grid_.clear_surface_plane();
     if (fine_grid_) {

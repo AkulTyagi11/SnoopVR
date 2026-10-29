@@ -35,15 +35,16 @@ class SnoopArNativeEngine(trackerType: Int = 0) : AutoCloseable {
         init {
             try {
                 System.loadLibrary("snoopar_jni")
-            } catch (_: UnsatisfiedLinkError) {
-                // Allows running in local unit test environments without native lib
+            } catch (e: UnsatisfiedLinkError) {
+                android.util.Log.w("SnoopArNativeEngine", "Native library snoopar_jni not loaded (test environment)", e)
             }
         }
     }
 
     private var handle: Long = try {
         nativeCreateEngine(trackerType)
-    } catch (_: Throwable) {
+    } catch (e: Throwable) {
+        android.util.Log.e("SnoopArNativeEngine", "Failed to create native engine", e)
         0L
     }
 
