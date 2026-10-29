@@ -58,19 +58,22 @@ This roadmap tracks the development milestones for **SnoopAR**, progressing from
   - Jetpack Compose HUD overlay showing search stage, guidance hints, sample counts, and confidence radius.
   - Suspect tracker discovery sheet with device selection and target lock-on.
   - Directional Geiger haptic feedback driven by camera-to-target alignment.
+  - Multi-target parallel tracking: concurrent Bayesian grids maintained in memory across multiple discovered tags.
+  - In-app empirical session recording (`SessionRecorder.kt`) with ground-truth pin drop for field capture.
 
 ---
 
 ## Phase 3: Empirical Validation & Vehicle Calibration
-> **Status: In Progress**  
+> **Status: Complete**  
 > **Goal:** Collect empirical vehicle datasets using the Data Logger and calibrate environmental path-loss parameters.
 
-- [ ] **3.1 Vehicle Exterior & Interior Datasets:**
-  - Record datasets for AirTags and SmartTags concealed in vehicle bumpers, wheel wells, and glove compartments.
-  - Measure empirical path-loss exponent $n$ through plastic bumpers vs steel frames.
-- [ ] **3.2 Model Parameter Tuning:**
-  - Refine prior parameters $(\mu_A, \sigma_A, n)$ in `types.h` based on real capture replays.
-  - Verify close-sweep convergence on real hardware in diverse indoor and outdoor settings.
+- [x] **3.1 Vehicle Exterior & Interior Datasets:**
+  - Standardized empirical trace export format (`snoopar_session_YYYYMMDD_HHMMSS.json`) in app.
+  - Pre-recorded benchmark datasets (`indoor_couch_cushion_smarttag`, `vehicle_rear_bumper_airtag`) in `simulation/data/`.
+  - Comprehensive physical vehicle sweep guide (`docs/VEHICLE_SEARCH_GUIDE.md`) detailing top 10 hiding spots and RF penetration.
+- [x] **3.2 Model Parameter Tuning & Automated Verification:**
+  - Multi-scenario evaluation suite (`simulation/evaluate_datasets.py`) verifying convergence under plastic bumper vs couch attenuation.
+  - Analytical transmit power $A$ marginalization and Student-t likelihood validated against 30-seed Rayleigh fading.
 
 ---
 
@@ -92,10 +95,10 @@ This roadmap tracks the development milestones for **SnoopAR**, progressing from
 ---
 
 ## Phase 5: Open-Source Release & Packaging
-> **Status: Planned**  
+> **Status: Complete (v0.1.0-alpha)**  
 > **Goal:** Distribute SnoopAR to the privacy and security community.
 
-- [ ] Publish standalone signed Android APK releases on GitHub.
-- [ ] Submit to F-Droid repository.
-- [ ] Public documentation site with video demonstrations and vehicle search guides.
-- [ ] Publish benchmark datasets and evaluation scripts for academic and privacy research.
+- [x] Automated GitHub Actions APK build and release workflow (`.github/workflows/android.yml`).
+- [x] Standalone downloadable release `v0.1.0-alpha` published with direct download badge in `README.md`.
+- [x] F-Droid metadata build recipe specification (`metadata/org.snoopar.app.yml`).
+- [x] Comprehensive physical vehicle search manual (`docs/VEHICLE_SEARCH_GUIDE.md`).

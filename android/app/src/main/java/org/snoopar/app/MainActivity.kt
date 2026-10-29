@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
@@ -29,6 +30,7 @@ import org.snoopar.app.ar.ArCoreController
 import org.snoopar.app.ar.rendering.ArGlRenderer
 import org.snoopar.app.ble.DiscoveredTracker
 import org.snoopar.app.ble.TrackerScanner
+import org.snoopar.app.data.SessionRecorder
 import org.snoopar.app.engine.AppGuidanceHint
 import org.snoopar.app.engine.AppSearchState
 import org.snoopar.app.engine.SnoopArNativeEngine
@@ -39,7 +41,10 @@ import kotlin.math.sqrt
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var nativeEngine: SnoopArNativeEngine
+    // Multi-Target Parallel Tracking Engines (keyed by Bluetooth device address)
+    private val engineMap = mutableMapOf<String, SnoopArNativeEngine>()
+    private val sessionRecorder = SessionRecorder()
+
     private lateinit var arCoreController: ArCoreController
     private lateinit var glRenderer: ArGlRenderer
     private lateinit var glSurfaceView: GLSurfaceView
@@ -58,6 +63,9 @@ class MainActivity : ComponentActivity() {
     private val targetBearing = mutableStateOf<TargetBearing?>(null)
     private val isAudioMuted = mutableStateOf(false)
     private val selectedAddress = mutableStateOf<String?>(null)
+    private val isRecording = mutableStateOf(false)
+    private val recordedSampleCount = mutableIntStateOf(0)
+    private val hasGroundTruth = mutableStateOf(false)
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -77,7 +85,6 @@ class MainActivity : ComponentActivity() {
             Log.e("SnoopAR", "Uncaught exception on thread ${thread.name}: ${throwable.message}", throwable)
         }
 
-        nativeEngine = SnoopArNativeEngine(0) // AirTag default
         arCoreController = ArCoreController(this)
         glRenderer = ArGlRenderer(arCoreController) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -118,17 +125,21 @@ class MainActivity : ComponentActivity() {
                     confidenceRadius = confidenceRadius.value,
                     targetBearing = targetBearing.value,
                     isAudioMuted = isAudioMuted.value,
+                    isRecording = isRecording.value,
+                    recordedCount = recordedSampleCount.intValue,
+                    hasGroundTruth = hasGroundTruth.value,
                     trackers = trackers,
                     selectedAddress = selectedAddress.value,
                     onSelectTracker = { tracker -> onSelectTargetTracker(tracker) },
                     onStartCloseSweep = {
-                        nativeEngine.startCloseSweep()
+                        val activeEngine = getActiveEngine()
+                        activeEngine.startCloseSweep()
                         searchState.value = AppSearchState.CLOSE_SWEEP_ACTIVE
                         guidanceHint.value = AppGuidanceHint.APPROACH_SURFACE
 
                         // Snap to nearest detected physical surface plane if available
                         arCoreController.getNearestPlane()?.let { plane ->
-                            nativeEngine.setSurfacePlane(
+                            activeEngine.setSurfacePlane(
                                 plane.centerX, plane.centerY, plane.centerZ,
                                 plane.normalX, plane.normalY, plane.normalZ,
                                 sigmaMeters = 0.08f
@@ -139,9 +150,37 @@ class MainActivity : ComponentActivity() {
                         isAudioMuted.value = !isAudioMuted.value
                         geigerFeedback.setAudioMuted(isAudioMuted.value)
                     },
+                    onToggleRecording = {
+                        if (isRecording.value) {
+                            val savedPath = sessionRecorder.stopRecording(this@MainActivity)
+                            isRecording.value = false
+                            hasGroundTruth.value = false
+                            recordedSampleCount.intValue = 0
+                            if (savedPath != null) {
+                                Toast.makeText(this@MainActivity, "Trace saved: ${savedPath.substringAfterLast('/')}", Toast.LENGTH_LONG).show()
+                            }
+                        } else {
+                            val addr = selectedAddress.value ?: "broadcast"
+                            val tType = trackerScanner?.discoveredTrackers?.value?.find { it.deviceAddress == addr }?.family?.trackerTypeId ?: 0
+                            sessionRecorder.startRecording(addr, tType)
+                            isRecording.value = true
+                            hasGroundTruth.value = false
+                            recordedSampleCount.intValue = 0
+                            Toast.makeText(this@MainActivity, "Session recording started", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onMarkGroundTruth = {
+                        arCoreController.currentPose?.let { pose ->
+                            sessionRecorder.setGroundTruth(pose.x, pose.y, pose.z)
+                            hasGroundTruth.value = true
+                            Toast.makeText(this@MainActivity, "Pinned ground truth: (%.2f, %.2f, %.2f)".format(pose.x, pose.y, pose.z), Toast.LENGTH_SHORT).show()
+                        }
+                    },
                     onReset = {
-                        nativeEngine.reset()
-                        nativeEngine.clearSurfacePlane()
+                        getActiveEngine().apply {
+                            reset()
+                            clearSurfacePlane()
+                        }
                         glRenderer.breadcrumbRenderer.clear()
                         glRenderer.updateVoxelCloud(emptyList())
                         observationCount.longValue = 0L
@@ -155,62 +194,110 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun getActiveEngine(): SnoopArNativeEngine {
+        val addr = selectedAddress.value ?: "default"
+        return synchronized(engineMap) {
+            engineMap.getOrPut(addr) { SnoopArNativeEngine(0) }
+        }
+    }
+
+    private fun getOrCreateEngine(address: String, trackerType: Int): SnoopArNativeEngine {
+        return synchronized(engineMap) {
+            engineMap.getOrPut(address) {
+                if (engineMap.size >= 6) {
+                    val oldestKey = engineMap.keys.firstOrNull { it != selectedAddress.value }
+                    if (oldestKey != null) {
+                        engineMap.remove(oldestKey)?.close()
+                    }
+                }
+                SnoopArNativeEngine(trackerType)
+            }
+        }
+    }
+
     private fun onBlePacketReceived(address: String, rssi: Float, timestampNs: Long) {
         val pose = arCoreController.interpolatePoseAt(timestampNs) ?: return
 
+        // Auto-select first discovered tracker if none is active yet
+        if (selectedAddress.value == null) {
+            val tracker = trackerScanner?.discoveredTrackers?.value?.find { it.deviceAddress == address }
+            if (tracker != null) {
+                selectedAddress.value = tracker.deviceAddress
+                targetName.value = "${tracker.family.displayName} (${tracker.deviceAddress.takeLast(5)})"
+                trackerScanner?.setTargetDevice(tracker.deviceAddress)
+            }
+        }
+
+        val trackerType = trackerScanner?.discoveredTrackers?.value?.find { it.deviceAddress == address }?.family?.trackerTypeId ?: 0
+
+        // Ingest into target's dedicated engine in parallel
+        val targetEngine = getOrCreateEngine(address, trackerType)
+
         lifecycleScope.launch(Dispatchers.Default) {
-            // Ingest into C++20 Core Engine via JNI on worker thread
-            nativeEngine.addObservation(
+            targetEngine.addObservation(
                 pose.x, pose.y, pose.z,
                 pose.gazeX, pose.gazeY, pose.gazeZ,
                 rssi, timestampNs
             )
 
-            // Add 3D AR Breadcrumb
-            glRenderer.breadcrumbRenderer.addBreadcrumb(pose.x, pose.y, pose.z, rssi)
-
-            // If close sweep is active, periodically refresh nearest surface plane
-            if (searchState.value == AppSearchState.CLOSE_SWEEP_ACTIVE) {
-                arCoreController.getNearestPlane()?.let { plane ->
-                    nativeEngine.setSurfacePlane(
-                        plane.centerX, plane.centerY, plane.centerZ,
-                        plane.normalX, plane.normalY, plane.normalZ,
-                        sigmaMeters = 0.08f
-                    )
-                }
+            // Record in empirical capture trace if recording active
+            if (isRecording.value) {
+                sessionRecorder.recordObservation(
+                    timestampNs, pose.x, pose.y, pose.z,
+                    pose.gazeX, pose.gazeY, pose.gazeZ,
+                    rssi, address
+                )
+                recordedSampleCount.intValue = sessionRecorder.getObservationCount()
             }
 
-            // Query updated 3D Volumetric Probability Cloud
-            val voxels = nativeEngine.getVoxelCloud(maxCount = 80)
-            glRenderer.updateVoxelCloud(voxels)
+            // Only update live AR visualizations and feedback if packet is from currently selected tracker
+            if (address == selectedAddress.value) {
+                // Add 3D AR Breadcrumb
+                glRenderer.breadcrumbRenderer.addBreadcrumb(pose.x, pose.y, pose.z, rssi)
 
-            val count = nativeEngine.getObservationCount()
-            val state = nativeEngine.getSearchState()
-            val hint = nativeEngine.getGuidanceHint()
-            val estimate = nativeEngine.getEstimate()
-            val bearing = nativeEngine.getBearingToTarget(
-                pose.x, pose.y, pose.z,
-                pose.gazeX, pose.gazeY, pose.gazeZ
-            )
+                // If close sweep is active, periodically refresh nearest surface plane
+                if (searchState.value == AppSearchState.CLOSE_SWEEP_ACTIVE) {
+                    arCoreController.getNearestPlane()?.let { plane ->
+                        targetEngine.setSurfacePlane(
+                            plane.centerX, plane.centerY, plane.centerZ,
+                            plane.normalX, plane.normalY, plane.normalZ,
+                            sigmaMeters = 0.08f
+                        )
+                    }
+                }
 
-            withContext(Dispatchers.Main) {
-                observationCount.longValue = count
-                latestRssi.floatValue = rssi
-                searchState.value = state
-                guidanceHint.value = hint
-                targetBearing.value = bearing
+                // Query updated 3D Volumetric Probability Cloud
+                val voxels = targetEngine.getVoxelCloud(maxCount = 80)
+                glRenderer.updateVoxelCloud(voxels)
 
-                if (estimate != null) {
-                    confidenceRadius.value = estimate.confidenceRadius
+                val count = targetEngine.getObservationCount()
+                val state = targetEngine.getSearchState()
+                val hint = targetEngine.getGuidanceHint()
+                val estimate = targetEngine.getEstimate()
+                val bearing = targetEngine.getBearingToTarget(
+                    pose.x, pose.y, pose.z,
+                    pose.gazeX, pose.gazeY, pose.gazeZ
+                )
 
-                    // Compute Geiger alignment dot product
-                    val dx = estimate.x - pose.x
-                    val dy = estimate.y - pose.y
-                    val dz = estimate.z - pose.z
-                    val dist = sqrt(dx * dx + dy * dy + dz * dz)
-                    if (dist > 1e-4f) {
-                        val dot = (pose.gazeX * (dx / dist)) + (pose.gazeY * (dy / dist)) + (pose.gazeZ * (dz / dist))
-                        geigerFeedback.update(dot, dist)
+                withContext(Dispatchers.Main) {
+                    observationCount.longValue = count
+                    latestRssi.floatValue = rssi
+                    searchState.value = state
+                    guidanceHint.value = hint
+                    targetBearing.value = bearing
+
+                    if (estimate != null) {
+                        confidenceRadius.value = estimate.confidenceRadius
+
+                        // Compute Geiger alignment dot product
+                        val dx = estimate.x - pose.x
+                        val dy = estimate.y - pose.y
+                        val dz = estimate.z - pose.z
+                        val dist = sqrt(dx * dx + dy * dy + dz * dz)
+                        if (dist > 1e-4f) {
+                            val dot = (pose.gazeX * (dx / dist)) + (pose.gazeY * (dy / dist)) + (pose.gazeZ * (dz / dist))
+                            geigerFeedback.update(dot, dist)
+                        }
                     }
                 }
             }
@@ -220,19 +307,23 @@ class MainActivity : ComponentActivity() {
     private fun onSelectTargetTracker(tracker: DiscoveredTracker) {
         selectedAddress.value = tracker.deviceAddress
         targetName.value = "${tracker.family.displayName} (${tracker.deviceAddress.takeLast(5)})"
-        nativeEngine.setTrackerType(tracker.family.trackerTypeId)
         trackerScanner?.setTargetDevice(tracker.deviceAddress)
 
-        // Reset search pipeline for new target
-        nativeEngine.reset()
-        nativeEngine.clearSurfacePlane()
-        glRenderer.breadcrumbRenderer.clear()
-        glRenderer.updateVoxelCloud(emptyList())
-        observationCount.longValue = 0L
-        searchState.value = AppSearchState.COARSE_SEARCH
-        guidanceHint.value = AppGuidanceHint.CONTINUE_SWEEP
-        confidenceRadius.value = null
-        targetBearing.value = null
+        // Retrieve existing parallel tracking engine (maintains Bayesian grid without wiping history)
+        val engine = getOrCreateEngine(tracker.deviceAddress, tracker.family.trackerTypeId)
+
+        // Update UI & AR state from target's accumulated state
+        val count = engine.getObservationCount()
+        val state = engine.getSearchState()
+        val hint = engine.getGuidanceHint()
+        val estimate = engine.getEstimate()
+        val voxels = engine.getVoxelCloud(maxCount = 80)
+
+        observationCount.longValue = count
+        searchState.value = state
+        guidanceHint.value = hint
+        confidenceRadius.value = estimate?.confidenceRadius
+        glRenderer.updateVoxelCloud(voxels)
     }
 
     private fun hasRequiredPermissions(): Boolean {
@@ -324,6 +415,10 @@ class MainActivity : ComponentActivity() {
         geigerFeedback.release()
         glSurfaceView.onPause()
         arCoreController.destroy()
-        nativeEngine.close()
+
+        synchronized(engineMap) {
+            engineMap.values.forEach { it.close() }
+            engineMap.clear()
+        }
     }
 }

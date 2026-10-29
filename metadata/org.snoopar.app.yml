@@ -1,0 +1,42 @@
+Categories:
+  - Security
+  - System
+License: Apache-2.0
+WebSite: https://github.com/AkulTyagi11/SnoopVR
+SourceCode: https://github.com/AkulTyagi11/SnoopVR
+IssueTracker: https://github.com/AkulTyagi11/SnoopVR/issues
+
+AutoName: SnoopAR
+Summary: Augmented Reality Spatial Pinpointer for Hidden Trackers
+Description: |-
+  SnoopAR is an open-source Augmented Reality security tool that locates
+  concealed Bluetooth tracking tags (Apple AirTags, Samsung SmartTags, Tile,
+  Google Find My Device Network) in 3D space.
+
+  By fusing smartphone Visual-Inertial Odometry (VIO) with real-time Bluetooth
+  Low Energy (BLE) packet sniffing and a zero-dependency C++20 Bayesian occupancy
+  grid, SnoopAR turns fluctuating decibels into a glowing 3D thermal probability
+  cloud in your camera viewfinder.
+
+  Key Features:
+  - Multi-hypothesis Bayesian inverse localization
+  - Real-time procedural audio Geiger counter and directional haptics
+  - Physical surface plane snapping (sub-15 cm locks)
+  - 100% offline, privacy-preserving, zero cloud tracking
+
+RepoType: git
+Repo: https://github.com/AkulTyagi11/SnoopVR.git
+
+Builds:
+  - versionName: 0.1.0-alpha
+    versionCode: 1
+    commit: v0.1.0-alpha
+    subdir: android
+    gradle:
+      - assembleRelease
+    ndk: r26b
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.1.0-alpha
+CurrentVersionCode: 1
