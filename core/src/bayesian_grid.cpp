@@ -121,8 +121,8 @@ bool BayesianGrid::get_estimate(Vec3& out_position, float& out_confidence_radius
     size_t peak_idx = std::distance(log_likelihoods_.begin(), max_it);
     float max_log_lik = *max_it;
 
-    // Cluster around peak (top voxels within 10 nats of peak)
-    float cluster_cutoff = max_log_lik - 10.0f;
+    // Cluster around peak (top voxels within 3.5 nats of peak for sharp localization)
+    float cluster_cutoff = max_log_lik - (has_plane_constraint_ ? 2.5f : 3.5f);
     float sum_weights = 0.0f;
     Vec3 weighted_pos(0.0f, 0.0f, 0.0f);
 
@@ -131,10 +131,13 @@ bool BayesianGrid::get_estimate(Vec3& out_position, float& out_confidence_radius
 
     for (size_t i = 0; i < grid_points_.size(); ++i) {
         if (log_likelihoods_[i] >= cluster_cutoff) {
-            float weight = std::exp(log_likelihoods_[i] - max_log_lik);
-            sum_weights += weight;
-            weighted_pos += grid_points_[i] * weight;
-            top_weights.push_back(weight);
+            float rel = log_likelihoods_[i] - max_log_lik;
+            float weight = std::exp(rel);
+            // Non-linear peak sharpening concentrates density on peak modes
+            float sharp_weight = weight * weight;
+            sum_weights += sharp_weight;
+            weighted_pos += grid_points_[i] * sharp_weight;
+            top_weights.push_back(sharp_weight);
             top_pts.push_back(grid_points_[i]);
         }
     }

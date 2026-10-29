@@ -67,11 +67,11 @@ void Engine::start_close_sweep() {
     Vec3 coarse_pos;
     float rad = 1.0f;
     if (coarse_grid_.get_estimate(coarse_pos, rad)) {
-        // Instantiate high-resolution fine grid (8 cm voxels) around the coarse quadrant
+        // Instantiate ultra-high-resolution fine grid (4 cm voxels) around the coarse quadrant
         // Adaptively size span to coarse uncertainty to prevent clipping true target
-        float span_xz = std::max(1.6f, std::min(rad * 1.2f, 2.2f));
-        float span_y = std::max(0.8f, std::min(rad * 0.8f, 1.4f));
-        fine_grid_ = std::make_unique<BayesianGrid>(coarse_pos, Vec3(span_xz, span_y, span_xz), 0.08f);
+        float span_xz = std::max(1.2f, std::min(rad * 1.0f, 1.8f));
+        float span_y = std::max(0.6f, std::min(rad * 0.7f, 1.2f));
+        fine_grid_ = std::make_unique<BayesianGrid>(coarse_pos, Vec3(span_xz, span_y, span_xz), 0.04f);
         if (has_plane_constraint_) {
             fine_grid_->set_surface_plane(plane_point_, plane_normal_, plane_sigma_);
         }

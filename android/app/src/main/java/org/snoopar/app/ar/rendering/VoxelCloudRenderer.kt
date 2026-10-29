@@ -15,7 +15,9 @@ class VoxelCloudRenderer {
         void main() {
             vProb = aPosition.w;
             gl_Position = uMvpMatrix * vec4(aPosition.xyz, 1.0);
-            gl_PointSize = max(16.0 * vProb, 6.0);
+            // Perspective point attenuation: nearby voxels expand into rich thermal heat blooms
+            float depth = max(gl_Position.w, 0.2);
+            gl_PointSize = clamp((380.0 * vProb) / depth, 24.0, 190.0);
         }
     """.trimIndent()
 
@@ -23,15 +25,35 @@ class VoxelCloudRenderer {
         precision mediump float;
         varying float vProb;
         void main() {
-            // Soft circular glowing point sprite
             vec2 coord = gl_PointCoord - vec2(0.5);
             float dist = length(coord);
             if (dist > 0.5) {
                 discard;
             }
-            float alpha = (1.0 - dist * 2.0) * vProb * 0.85;
-            // Thermal glow: Red-Orange core, golden edge
-            vec3 color = mix(vec3(1.0, 0.6, 0.1), vec3(1.0, 0.1, 0.05), vProb);
+            // Smooth Gaussian thermal radial attenuation
+            float radialHeat = exp(-dist * dist * 9.0) * vProb;
+            float alpha = clamp(radialHeat * 0.95, 0.0, 1.0);
+
+            // FLIR / Ironbow false-color thermal palette
+            vec3 color;
+            if (vProb > 0.80) {
+                // White-hot core (extreme thermal density)
+                float t = (vProb - 0.80) / 0.20;
+                color = mix(vec3(1.0, 0.75, 0.1), vec3(1.0, 1.0, 0.95), t);
+            } else if (vProb > 0.50) {
+                // Scorching Flame Orange to Vivid Amber
+                float t = (vProb - 0.50) / 0.30;
+                color = mix(vec3(0.95, 0.15, 0.25), vec3(1.0, 0.75, 0.1), t);
+            } else if (vProb > 0.25) {
+                // Infrared Crimson / Magenta
+                float t = (vProb - 0.25) / 0.25;
+                color = mix(vec3(0.45, 0.05, 0.75), vec3(0.95, 0.15, 0.25), t);
+            } else {
+                // Cool fringe (Deep Thermal Violet / Cyan)
+                float t = vProb / 0.25;
+                color = mix(vec3(0.05, 0.25, 0.65), vec3(0.45, 0.05, 0.75), t);
+            }
+
             gl_FragColor = vec4(color, alpha);
         }
     """.trimIndent()

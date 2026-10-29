@@ -183,6 +183,7 @@ class MainActivity : ComponentActivity() {
                         }
                         glRenderer.breadcrumbRenderer.clear()
                         glRenderer.updateVoxelCloud(emptyList())
+                        glRenderer.updateTarget(null, null, null, null, AppSearchState.COARSE_SEARCH)
                         observationCount.longValue = 0L
                         searchState.value = AppSearchState.COARSE_SEARCH
                         guidanceHint.value = AppGuidanceHint.CONTINUE_SWEEP
@@ -279,6 +280,16 @@ class MainActivity : ComponentActivity() {
                     pose.gazeX, pose.gazeY, pose.gazeZ
                 )
 
+                // Update 3D Thermal Target Reticle & Holographic Bounding Box
+                val nearestPlane = arCoreController.getNearestPlane()
+                glRenderer.updateTarget(
+                    estimate?.x, estimate?.y, estimate?.z,
+                    estimate?.confidenceRadius,
+                    state,
+                    nearestPlane != null,
+                    nearestPlane?.centerY ?: 0.0f
+                )
+
                 withContext(Dispatchers.Main) {
                     observationCount.longValue = count
                     latestRssi.floatValue = rssi
@@ -324,6 +335,15 @@ class MainActivity : ComponentActivity() {
         guidanceHint.value = hint
         confidenceRadius.value = estimate?.confidenceRadius
         glRenderer.updateVoxelCloud(voxels)
+
+        val nearestPlane = arCoreController.getNearestPlane()
+        glRenderer.updateTarget(
+            estimate?.x, estimate?.y, estimate?.z,
+            estimate?.confidenceRadius,
+            state,
+            nearestPlane != null,
+            nearestPlane?.centerY ?: 0.0f
+        )
     }
 
     private fun hasRequiredPermissions(): Boolean {

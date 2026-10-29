@@ -18,6 +18,7 @@ class ArGlRenderer(
     val backgroundRenderer = BackgroundRenderer()
     val breadcrumbRenderer = BreadcrumbRenderer()
     val voxelCloudRenderer = VoxelCloudRenderer()
+    val targetReticleRenderer = TargetReticleRenderer()
 
     private var cameraTextureInitialized = false
     private var viewportWidth = 0
@@ -34,6 +35,7 @@ class ArGlRenderer(
             backgroundRenderer.init()
             breadcrumbRenderer.init()
             voxelCloudRenderer.init()
+            targetReticleRenderer.init()
 
             // Bind camera texture to ARCore session if session already created
             arCoreController.session?.let { session ->
@@ -103,6 +105,9 @@ class ArGlRenderer(
 
             // 5. Draw 3D Volumetric Probability Cloud
             voxelCloudRenderer.draw(mvpMatrix)
+
+            // 6. Draw 3D Bold Thermal Target Reticle & Outline Box
+            targetReticleRenderer.draw(mvpMatrix)
         } catch (_: Exception) {
             // Protect GL thread from any uncaught rendering errors
         }
@@ -110,5 +115,15 @@ class ArGlRenderer(
 
     fun updateVoxelCloud(voxels: List<VoxelPoint>) {
         voxelCloudRenderer.updateVoxels(voxels)
+    }
+
+    fun updateTarget(
+        x: Float?, y: Float?, z: Float?,
+        radius: Float?,
+        state: AppSearchState,
+        planeAvailable: Boolean = false,
+        planeY: Float = 0.0f
+    ) {
+        targetReticleRenderer.updateTarget(x, y, z, radius, state, planeAvailable, planeY)
     }
 }
