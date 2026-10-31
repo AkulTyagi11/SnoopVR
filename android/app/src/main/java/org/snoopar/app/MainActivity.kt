@@ -161,9 +161,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     },
-                            )
-                        }
-                    },
                     onToggleAudioMute = {
                         isAudioMuted.value = !isAudioMuted.value
                         geigerFeedback.setAudioMuted(isAudioMuted.value)
