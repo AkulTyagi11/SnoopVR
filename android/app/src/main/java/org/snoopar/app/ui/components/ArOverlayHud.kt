@@ -88,7 +88,7 @@ fun ArOverlayHud(
                                 AppSearchState.COARSE_SEARCH -> "STAGE 1: COARSE"
                                 AppSearchState.READY_FOR_CLOSE_SWEEP -> "CLOSE SWEEP READY"
                                 AppSearchState.CLOSE_SWEEP_ACTIVE -> "STAGE 2: CLOSE SWEEP"
-                                AppSearchState.TARGET_LOCKED -> "TARGET LOCKED (<25cm)"
+                                AppSearchState.TARGET_LOCKED -> "TARGET PINPOINTED (<35cm)"
                             },
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -272,13 +272,31 @@ fun ArOverlayHud(
                             Text("Trackers", fontSize = 13.sp)
                         }
 
-                        if (searchState == AppSearchState.READY_FOR_CLOSE_SWEEP || searchState == AppSearchState.COARSE_SEARCH) {
+                        if (searchState == AppSearchState.READY_FOR_CLOSE_SWEEP) {
                             Button(
                                 onClick = onStartCloseSweep,
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100))
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
                             ) {
                                 Text("Begin Close Sweep", fontWeight = FontWeight.Bold)
+                            }
+                        } else if (searchState == AppSearchState.COARSE_SEARCH) {
+                            val canSweep = observationCount >= 6
+                            Button(
+                                onClick = { if (canSweep) onStartCloseSweep() },
+                                modifier = Modifier.weight(1f),
+                                enabled = canSweep,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFE65100),
+                                    disabledContainerColor = Color(0x33E65100),
+                                    disabledContentColor = Color.Gray
+                                )
+                            ) {
+                                Text(
+                                    if (canSweep) "Start Close Sweep" else "Sweep Area ($observationCount/6)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
                             }
                         }
 

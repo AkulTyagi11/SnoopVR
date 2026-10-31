@@ -26,6 +26,7 @@ class TrackerScanner(
     private var isScanning = false
     private var targetedAddress: String? = null
     private var lastScanStartTimeMs = 0L
+    private var lastListEmitTimeMs = 0L
     private val minScanIntervalMs = 1500L
 
     private val _discoveredTrackers = MutableStateFlow<List<DiscoveredTracker>>(emptyList())
@@ -97,8 +98,10 @@ class TrackerScanner(
         val nowNs = if (result.timestampNanos > 0) result.timestampNanos else SystemClock.elapsedRealtimeNanos()
 
         val family = classify(record) ?: return
+        val nowMs = SystemClock.uptimeMillis()
 
         synchronized(trackersMap) {
+            val isNew = !trackersMap.containsKey(address)
             val existing = trackersMap[address]
             val updated = existing?.copy(
                 lastRssi = rssi,
@@ -112,7 +115,19 @@ class TrackerScanner(
                 lastSeenTimestampNs = nowNs
             )
             trackersMap[address] = updated
-            _discoveredTrackers.value = trackersMap.values.toList()
+
+            // Prune trackers not seen in the last 90 seconds (excluding targeted address)
+            val staleCutoffNs = nowNs - 90_000_000_000L
+            val staleKeys = trackersMap.filter { it.key != targetedAddress && it.value.lastSeenTimestampNs < staleCutoffNs }.keys
+            for (k in staleKeys) {
+                trackersMap.remove(k)
+            }
+
+            // Throttle UI emissions to at most twice a second to prevent Compose recomposition churn
+            if (isNew || staleKeys.isNotEmpty() || (nowMs - lastListEmitTimeMs) >= 500L) {
+                lastListEmitTimeMs = nowMs
+                _discoveredTrackers.value = trackersMap.values.toList()
+            }
         }
 
         // If this is the currently locked target (or only suspect tag), emit observation

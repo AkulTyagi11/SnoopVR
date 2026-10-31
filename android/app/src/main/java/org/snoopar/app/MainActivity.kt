@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Surface
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -85,6 +86,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Keep screen awake while conducting AR tracking search
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         // Install defensive global exception logger
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("SnoopAR", "Uncaught exception on thread ${thread.name}: ${throwable.message}", throwable)
@@ -109,6 +113,10 @@ class MainActivity : ComponentActivity() {
 
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
         val bluetoothAdapter = bluetoothManager?.adapter
+
+        if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled) {
+            Toast.makeText(this, "Bluetooth is off. Please turn on Bluetooth to detect AirTags.", Toast.LENGTH_LONG).show()
+        }
 
         trackerScanner = TrackerScanner(bluetoothAdapter) { address, rssi, timestampNs ->
             onBlePacketReceived(address, rssi, timestampNs)
@@ -139,15 +147,20 @@ class MainActivity : ComponentActivity() {
                     onStartCloseSweep = {
                         val activeEngine = getActiveEngine()
                         activeEngine.startCloseSweep()
-                        searchState.value = AppSearchState.CLOSE_SWEEP_ACTIVE
-                        guidanceHint.value = AppGuidanceHint.APPROACH_SURFACE
-
-                        // Snap to nearest detected physical surface plane if available
-                        arCoreController.getNearestPlane()?.let { plane ->
-                            activeEngine.setSurfacePlane(
-                                plane.centerX, plane.centerY, plane.centerZ,
-                                plane.normalX, plane.normalY, plane.normalZ,
-                                sigmaMeters = 0.08f
+                        val newState = activeEngine.getSearchState()
+                        searchState.value = newState
+                        if (newState == AppSearchState.CLOSE_SWEEP_ACTIVE) {
+                            guidanceHint.value = AppGuidanceHint.APPROACH_SURFACE
+                            // Snap to nearest detected physical surface plane if available
+                            arCoreController.getNearestPlane()?.let { plane ->
+                                activeEngine.setSurfacePlane(
+                                    plane.centerX, plane.centerY, plane.centerZ,
+                                    plane.normalX, plane.normalY, plane.normalZ,
+                                    sigmaMeters = 0.08f
+                                )
+                            }
+                        }
+                    },
                             )
                         }
                     },
@@ -423,6 +436,10 @@ class MainActivity : ComponentActivity() {
         glSurfaceView.onResume()
 
         if (hasRequiredPermissions()) {
+            val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            if (bluetoothManager?.adapter?.isEnabled == false) {
+                Toast.makeText(this, "Bluetooth is disabled. Please turn on Bluetooth.", Toast.LENGTH_SHORT).show()
+            }
             setupArCoreAndStart()
         }
     }

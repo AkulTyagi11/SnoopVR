@@ -111,11 +111,11 @@ class TargetReticleRenderer {
                     val cz = targetZ + sz * halfSize
 
                     // Branch along X
-                    boxLines.addAll(listOf(cx, cy, cz, cx - sx * armLen, cy, cz))
+                    addThickLine(boxLines, cx, cy, cz, cx - sx * armLen, cy, cz)
                     // Branch along Y
-                    boxLines.addAll(listOf(cx, cy, cz, cx, cy - sy * armLen, cz))
+                    addThickLine(boxLines, cx, cy, cz, cx, cy - sy * armLen, cz)
                     // Branch along Z
-                    boxLines.addAll(listOf(cx, cy, cz, cx, cy, cz - sz * armLen))
+                    addThickLine(boxLines, cx, cy, cz, cx, cy, cz - sz * armLen)
                 }
             }
         }
@@ -257,19 +257,49 @@ class TargetReticleRenderer {
         }
     }
 
+    private fun addThickLine(
+        lines: MutableList<Float>,
+        x1: Float, y1: Float, z1: Float,
+        x2: Float, y2: Float, z2: Float,
+        offset: Float = 0.0022f
+    ) {
+        // Center line
+        lines.addAll(listOf(x1, y1, z1, x2, y2, z2))
+        // Micro-offsets produce bold rendering regardless of whether the mobile GPU clamps glLineWidth
+        lines.addAll(listOf(x1, y1 + offset, z1, x2, y2 + offset, z2))
+        lines.addAll(listOf(x1, y1 - offset, z1, x2, y2 - offset, z2))
+        lines.addAll(listOf(x1 + offset, y1, z1, x2 + offset, y2, z2))
+        lines.addAll(listOf(x1 - offset, y1, z1, x2 - offset, y2, z2))
+    }
+
     private fun createProgram(vCode: String, fCode: String): Int {
         val vShader = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER).also {
             GLES20.glShaderSource(it, vCode)
             GLES20.glCompileShader(it)
+            val compiled = IntArray(1)
+            GLES20.glGetShaderiv(it, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                android.util.Log.e("TargetReticleRenderer", "Vertex shader error: " + GLES20.glGetShaderInfoLog(it))
+            }
         }
         val fShader = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER).also {
             GLES20.glShaderSource(it, fCode)
             GLES20.glCompileShader(it)
+            val compiled = IntArray(1)
+            GLES20.glGetShaderiv(it, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                android.util.Log.e("TargetReticleRenderer", "Fragment shader error: " + GLES20.glGetShaderInfoLog(it))
+            }
         }
         return GLES20.glCreateProgram().also {
             GLES20.glAttachShader(it, vShader)
             GLES20.glAttachShader(it, fShader)
             GLES20.glLinkProgram(it)
+            val linked = IntArray(1)
+            GLES20.glGetProgramiv(it, GLES20.GL_LINK_STATUS, linked, 0)
+            if (linked[0] == 0) {
+                android.util.Log.e("TargetReticleRenderer", "Program link error: " + GLES20.glGetProgramInfoLog(it))
+            }
         }
     }
 }

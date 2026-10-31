@@ -129,11 +129,15 @@ class CsvSessionWriter(private val context: Context) {
         try {
             posesWriter?.flush()
             posesWriter?.close()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("CsvSessionWriter", "Error closing posesWriter", e)
+        }
         try {
             bleWriter?.flush()
             bleWriter?.close()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("CsvSessionWriter", "Error closing bleWriter", e)
+        }
         posesWriter = null
         bleWriter = null
     }

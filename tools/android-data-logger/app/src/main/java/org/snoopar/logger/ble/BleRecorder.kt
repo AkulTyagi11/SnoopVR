@@ -67,7 +67,9 @@ class BleRecorder(
         if (scanner != null) {
             try {
                 scanner.stopScan(scanCallback)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("BleRecorder", "Error stopping scan", e)
+            }
         }
         isScanning = false
     }

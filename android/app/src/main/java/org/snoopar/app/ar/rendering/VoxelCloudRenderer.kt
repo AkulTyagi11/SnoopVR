@@ -129,22 +129,39 @@ class VoxelCloudRenderer {
             GLES20.glDisableVertexAttribArray(positionHandle)
             GLES20.glDepthMask(true)
             GLES20.glDisable(GLES20.GL_BLEND)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("VoxelCloudRenderer", "Error drawing voxel cloud", e)
+        }
     }
 
     private fun createProgram(vCode: String, fCode: String): Int {
         val vShader = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER).also {
             GLES20.glShaderSource(it, vCode)
             GLES20.glCompileShader(it)
+            val compiled = IntArray(1)
+            GLES20.glGetShaderiv(it, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                android.util.Log.e("VoxelCloudRenderer", "Vertex shader error: " + GLES20.glGetShaderInfoLog(it))
+            }
         }
         val fShader = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER).also {
             GLES20.glShaderSource(it, fCode)
             GLES20.glCompileShader(it)
+            val compiled = IntArray(1)
+            GLES20.glGetShaderiv(it, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                android.util.Log.e("VoxelCloudRenderer", "Fragment shader error: " + GLES20.glGetShaderInfoLog(it))
+            }
         }
         return GLES20.glCreateProgram().also {
             GLES20.glAttachShader(it, vShader)
             GLES20.glAttachShader(it, fShader)
             GLES20.glLinkProgram(it)
+            val linked = IntArray(1)
+            GLES20.glGetProgramiv(it, GLES20.GL_LINK_STATUS, linked, 0)
+            if (linked[0] == 0) {
+                android.util.Log.e("VoxelCloudRenderer", "Program link error: " + GLES20.glGetProgramInfoLog(it))
+            }
         }
     }
 }

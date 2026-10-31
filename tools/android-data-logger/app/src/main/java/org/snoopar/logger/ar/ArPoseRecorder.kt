@@ -51,7 +51,8 @@ class ArPoseRecorder(
             arSession.configure(config)
             session = arSession
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.e("ArPoseRecorder", "Failed to initialize ARCore session", e)
             false
         }
     }
@@ -89,7 +90,7 @@ class ArPoseRecorder(
         val s = session ?: return
         val frame = try {
             s.update()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             return
         }
 
@@ -138,19 +139,25 @@ class ArPoseRecorder(
     fun resume() {
         try {
             session?.resume()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("ArPoseRecorder", "Failed to resume session", e)
+        }
     }
 
     fun pause() {
         try {
             session?.pause()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("ArPoseRecorder", "Failed to pause session", e)
+        }
     }
 
     fun destroy() {
         try {
             session?.close()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("ArPoseRecorder", "Failed to close session", e)
+        }
         session = null
     }
 }

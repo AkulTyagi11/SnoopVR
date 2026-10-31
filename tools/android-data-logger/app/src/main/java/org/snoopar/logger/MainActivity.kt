@@ -93,9 +93,11 @@ class MainActivity : ComponentActivity() {
                 latestPoseState.value = "[%.2f, %.2f, %.2f]".format(poseEvent.x, poseEvent.y, poseEvent.z)
             },
             onGroundTruthTapped = { x, y, z ->
-                groundTruthState.value = "[%.2f, %.2f, %.2f]".format(x, y, z)
-                sessionWriter.setGroundTruth(x, y, z)
-                Toast.makeText(this, "Ground Truth Tag Pinned: [%.2f, %.2f, %.2f]".format(x, y, z), Toast.LENGTH_SHORT).show()
+                runOnUiThread {
+                    groundTruthState.value = "[%.2f, %.2f, %.2f]".format(x, y, z)
+                    sessionWriter.setGroundTruth(x, y, z)
+                    Toast.makeText(this, "Ground Truth Tag Pinned: [%.2f, %.2f, %.2f]".format(x, y, z), Toast.LENGTH_SHORT).show()
+                }
             }
         )
 

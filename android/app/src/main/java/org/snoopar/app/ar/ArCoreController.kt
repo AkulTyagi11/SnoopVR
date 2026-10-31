@@ -32,6 +32,9 @@ class ArCoreController(private val context: Context) {
     var currentPose: CameraPoseSample? = null
         private set
 
+    var isTracking: Boolean = false
+        private set
+
     fun initialize(): Boolean {
         if (session != null) return true
 
@@ -53,7 +56,8 @@ class ArCoreController(private val context: Context) {
 
     fun onFrame(frame: Frame) {
         val camera = frame.camera
-        if (camera.trackingState != TrackingState.TRACKING) return
+        isTracking = camera.trackingState == TrackingState.TRACKING
+        if (!isTracking) return
 
         val pose = camera.pose
         val translation = pose.translation // [x, y, z]
@@ -82,10 +86,16 @@ class ArCoreController(private val context: Context) {
 
     /**
      * Interpolates the camera pose at the exact microsecond timestamp of BLE packet arrival.
+     * Rejects observations during tracking loss or timestamp disparity > 400ms.
      */
     fun interpolatePoseAt(timestampNs: Long): CameraPoseSample? {
+        if (!isTracking) return null
         val history = poseHistory.toList()
         if (history.isEmpty()) return currentPose
+        val latest = history.last()
+        if (kotlin.math.abs(timestampNs - latest.timestampNs) > 400_000_000L) {
+            return null
+        }
         if (history.size == 1) return history[0]
 
         // Find nearest or bracket
@@ -94,14 +104,18 @@ class ArCoreController(private val context: Context) {
             val p1 = history[i + 1]
             if (timestampNs in p0.timestampNs..p1.timestampNs) {
                 val alpha = (timestampNs - p0.timestampNs).toFloat() / (p1.timestampNs - p0.timestampNs).toFloat()
+                val gx = p0.gazeX + alpha * (p1.gazeX - p0.gazeX)
+                val gy = p0.gazeY + alpha * (p1.gazeY - p0.gazeY)
+                val gz = p0.gazeZ + alpha * (p1.gazeZ - p0.gazeZ)
+                val gLen = kotlin.math.sqrt(gx * gx + gy * gy + gz * gz).coerceAtLeast(1e-4f)
                 return CameraPoseSample(
                     timestampNs = timestampNs,
                     x = p0.x + alpha * (p1.x - p0.x),
                     y = p0.y + alpha * (p1.y - p0.y),
                     z = p0.z + alpha * (p1.z - p0.z),
-                    gazeX = p0.gazeX + alpha * (p1.gazeX - p0.gazeX),
-                    gazeY = p0.gazeY + alpha * (p1.gazeY - p0.gazeY),
-                    gazeZ = p0.gazeZ + alpha * (p1.gazeZ - p0.gazeZ)
+                    gazeX = gx / gLen,
+                    gazeY = gy / gLen,
+                    gazeZ = gz / gLen
                 )
             }
         }

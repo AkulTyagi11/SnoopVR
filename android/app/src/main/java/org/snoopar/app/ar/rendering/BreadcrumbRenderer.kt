@@ -16,7 +16,9 @@ class BreadcrumbRenderer {
         void main() {
             vNormRssi = aPosition.w;
             gl_Position = uMvpMatrix * vec4(aPosition.xyz, 1.0);
-            gl_PointSize = 10.0;
+            // Sized appropriately for high-DPI displays with perspective attenuation
+            float depth = max(gl_Position.w, 0.4);
+            gl_PointSize = clamp(65.0 / depth, 14.0, 32.0);
         }
     """.trimIndent()
 
@@ -117,22 +119,39 @@ class BreadcrumbRenderer {
 
             GLES20.glDisableVertexAttribArray(positionHandle)
             GLES20.glDisable(GLES20.GL_BLEND)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("BreadcrumbRenderer", "Error drawing breadcrumbs", e)
+        }
     }
 
     private fun createProgram(vCode: String, fCode: String): Int {
         val vShader = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER).also {
             GLES20.glShaderSource(it, vCode)
             GLES20.glCompileShader(it)
+            val compiled = IntArray(1)
+            GLES20.glGetShaderiv(it, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                android.util.Log.e("BreadcrumbRenderer", "Vertex shader error: " + GLES20.glGetShaderInfoLog(it))
+            }
         }
         val fShader = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER).also {
             GLES20.glShaderSource(it, fCode)
             GLES20.glCompileShader(it)
+            val compiled = IntArray(1)
+            GLES20.glGetShaderiv(it, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                android.util.Log.e("BreadcrumbRenderer", "Fragment shader error: " + GLES20.glGetShaderInfoLog(it))
+            }
         }
         return GLES20.glCreateProgram().also {
             GLES20.glAttachShader(it, vShader)
             GLES20.glAttachShader(it, fShader)
             GLES20.glLinkProgram(it)
+            val linked = IntArray(1)
+            GLES20.glGetProgramiv(it, GLES20.GL_LINK_STATUS, linked, 0)
+            if (linked[0] == 0) {
+                android.util.Log.e("BreadcrumbRenderer", "Program link error: " + GLES20.glGetProgramInfoLog(it))
+            }
         }
     }
 }

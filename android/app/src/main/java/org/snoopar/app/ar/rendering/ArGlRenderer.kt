@@ -25,6 +25,7 @@ class ArGlRenderer(
     private var viewportWidth = 0
     private var viewportHeight = 0
     private var viewportChanged = false
+    private var lastDisplayRotation = -1
 
     private val projectionMatrix = FloatArray(16)
     private val viewMatrix = FloatArray(16)
@@ -45,7 +46,9 @@ class ArGlRenderer(
                     cameraTextureInitialized = true
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("ArGlRenderer", "Error in onSurfaceCreated", e)
+        }
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -54,8 +57,12 @@ class ArGlRenderer(
         viewportHeight = height
         viewportChanged = true
         try {
-            arCoreController.session?.setDisplayGeometry(getDisplayRotation(), width, height)
-        } catch (_: Exception) {}
+            val rot = getDisplayRotation()
+            lastDisplayRotation = rot
+            arCoreController.session?.setDisplayGeometry(rot, width, height)
+        } catch (e: Exception) {
+            android.util.Log.w("ArGlRenderer", "Error in onSurfaceChanged", e)
+        }
     }
 
     override fun onDrawFrame(gl: GL10?) {
@@ -69,21 +76,25 @@ class ArGlRenderer(
                 try {
                     session.setCameraTextureName(backgroundRenderer.textureId)
                     cameraTextureInitialized = true
-                } catch (_: Exception) {
+                } catch (e: Exception) {
                     return
                 }
             }
 
-            if (viewportChanged && viewportWidth > 0 && viewportHeight > 0) {
+            val currentRotation = getDisplayRotation()
+            if ((viewportChanged || currentRotation != lastDisplayRotation) && viewportWidth > 0 && viewportHeight > 0) {
                 try {
-                    session.setDisplayGeometry(getDisplayRotation(), viewportWidth, viewportHeight)
+                    session.setDisplayGeometry(currentRotation, viewportWidth, viewportHeight)
                     viewportChanged = false
-                } catch (_: Exception) {}
+                    lastDisplayRotation = currentRotation
+                } catch (e: Exception) {
+                    android.util.Log.w("ArGlRenderer", "Error updating display geometry", e)
+                }
             }
 
             val frame = try {
                 session.update()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 return
             }
 

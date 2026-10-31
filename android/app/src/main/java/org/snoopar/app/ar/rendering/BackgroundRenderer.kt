@@ -101,16 +101,31 @@ class BackgroundRenderer {
         val vShader = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER).also {
             GLES20.glShaderSource(it, VERTEX_SHADER_CODE.trimIndent())
             GLES20.glCompileShader(it)
+            val compiled = IntArray(1)
+            GLES20.glGetShaderiv(it, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                android.util.Log.e("BackgroundRenderer", "Vertex shader error: " + GLES20.glGetShaderInfoLog(it))
+            }
         }
         val fShader = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER).also {
             GLES20.glShaderSource(it, FRAGMENT_SHADER_CODE.trimIndent())
             GLES20.glCompileShader(it)
+            val compiled = IntArray(1)
+            GLES20.glGetShaderiv(it, GLES20.GL_COMPILE_STATUS, compiled, 0)
+            if (compiled[0] == 0) {
+                android.util.Log.e("BackgroundRenderer", "Fragment shader error: " + GLES20.glGetShaderInfoLog(it))
+            }
         }
 
         program = GLES20.glCreateProgram().also {
             GLES20.glAttachShader(it, vShader)
             GLES20.glAttachShader(it, fShader)
             GLES20.glLinkProgram(it)
+            val linked = IntArray(1)
+            GLES20.glGetProgramiv(it, GLES20.GL_LINK_STATUS, linked, 0)
+            if (linked[0] == 0) {
+                android.util.Log.e("BackgroundRenderer", "Program link error: " + GLES20.glGetProgramInfoLog(it))
+            }
         }
 
         positionAttrib = GLES20.glGetAttribLocation(program, "a_Position")
@@ -172,8 +187,9 @@ class BackgroundRenderer {
             // Restore OpenGL state for subsequent 3D render passes
             GLES20.glDepthMask(true)
             GLES20.glEnable(GLES20.GL_DEPTH_TEST)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Protect GL thread from unhandled display frame transformation exceptions
+            android.util.Log.w("BackgroundRenderer", "Error drawing background frame", e)
         }
     }
 }
